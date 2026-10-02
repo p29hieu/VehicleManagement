@@ -13,6 +13,6 @@ test-results/
 
 # Dữ liệu phương tiện thật của người dùng.
 # Repo này PUBLIC — lịch sử đổ xăng/ODO là dữ liệu cá nhân, giữ ở máy local.
-# Bỏ 2 dòng dưới nếu muốn đẩy lên.
-data/VehicleManagement-seed-drivvo.xlsx
-data/csv/
+# Ignore cả thư mục (trừ README) để file dữ liệu mới không lọt ra vì quên liệt kê.
+data/*
+!data/README.md

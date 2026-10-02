@@ -225,6 +225,12 @@ Cache Storage, cookie, quyền. **Đặt tiền tố cho mọi key và mọi tê
 Và nếu tài khoản đó từng publish một user site có `sw.js` ở gốc, scope mặc định `/` của nó
 phủ luôn subpath của ta mà ta không chống được.
 
+> ⚠️ **Cập nhật 03/10/2026:** phần tra cứu về bản export của Drivvo ở trên **không dùng tới**.
+> Người dùng xác nhận Drivvo **không có chức năng xuất file**. Dữ liệu lịch sử được chép tay từ
+> ảnh chụp màn hình, và format import chính thức là format gốc của app
+> (`03-DATA-MODEL.md` §7.2). Giữ lại phần này phòng khi Drivvo mở export, hoặc cần nhập
+> từ Fuelio/Fuelly.
+
 ## 7. Xuất Excel
 
 ### `xlsx` của SheetJS trên npm — bỏ hẳn

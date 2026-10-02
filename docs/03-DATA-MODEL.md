@@ -230,58 +230,82 @@ Sheet `DuBaoDrivvo` giữ lại số của Drivvo để đối chiếu.
 
 ---
 
-## 7. Nhập dữ liệu từ Drivvo
+## 7. Nhập dữ liệu
 
-Drivvo có **ba lược đồ khác nhau, không tương thích với nhau**: export từ app mobile,
-export từ `web.drivvo.com`, và file mẫu để import. **Đừng** lấy file export đem import ngược lại.
+### 7.1 Drivvo không xuất được file — ảnh chụp màn hình là nguồn duy nhất
 
-### 7.1 Tên cột tiếng Việt
+Đã xác nhận với người dùng (03/10/2026): **Drivvo không cho xuất file**.
+Vì vậy mọi phương án "ánh xạ cột từ bản export Drivvo" đều **không áp dụng được**, và
+bộ ánh xạ cột tiếng Việt từng tra ra ở `04-RESEARCH.md` §7 chỉ còn giá trị tham khảo
+nếu sau này Drivvo mở tính năng export, hoặc cần nhập từ Fuelio/Fuelly.
 
-Drivvo **có** bản địa hoá tiếng Việt. Tên cột lấy từ `https://web.drivvo.com/locales/vi.json`
-(839 khoá, đã tải về và đối chiếu với `en.json`):
+**Hệ quả:** dữ liệu lịch sử được **chép tay từ ảnh chụp màn hình**, và
+**format gốc của app** mới là format import chính thức — không phải format của ai khác.
 
+### 7.2 Format import chính thức
+
+`format: "vehicle-management/import"`, `version: 1`. Một file JSON duy nhất:
+
+```jsonc
+{
+  "format": "vehicle-management/import",
+  "version": 1,
+  "generated_at": "2026-10-03",
+  "source": { "app": "Drivvo", "method": "...", "completeness": "..." },
+  "settings": {
+    "currency": "VND", "distance_unit": "km", "volume_unit": "L",
+    "locale": "vi-VN", "timezone": "Asia/Ho_Chi_Minh",
+    "fuel_prices": { "ron95": null, "e5ron92": null, "diesel": null, "electric": null }
+  },
+  "vehicles":    [ /* §1.1 */ ],
+  "fuel_entries":[ /* §1.2 */ ],
+  "services":    [ /* §1.3 */ ],
+  "expenses":    [ /* §1.3 */ ],
+
+  // Tách riêng: KHÔNG phải dữ liệu gốc mà là đề xuất, trình nhập cho người dùng chọn nhận hay không.
+  "suggested_maintenance_rules": [ /* §1.4 */ ],
+  "suggested_reminders":         [ /* §1.4 */ ],
+
+  // Vấn đề phát hiện lúc trích xuất, hiện lên UI sau khi nhập xong.
+  "data_quality": [ { "severity": "high|medium|low", "refs": [], "issue": "",
+                      "detail": "", "impact": "", "action": "" } ]
+}
 ```
-Dấu phân mục:
-  #Xe cộ · #Nạp nhiên liệu · #Chi phí · #Dịch vụ · #Thu nhập · #Đọc số · #Hành trình · #Nhắc nhở
 
-Nạp nhiên liệu:
-  Tên xe · Công tơ mét (km) · Ngày · Nhiên liệu · Giá / L · Tổng chi phí · Thể tích ·
-  Tiếp đầy thùng nhiên liệu · Nhiên liệu thứ hai · Nhiên liệu thứ ba · Tiết kiệm nhiên liệu ·
-  Loại sạc · Pin đầu (%) · Pin cuối (%) · Thời lượng (phút) · Trạm xăng · Tài xế ·
-  Phương thức thanh toán · Lý do · Ghi chú
+Vì sao tách `suggested_*` khỏi dữ liệu thật: nhắc nhở do ta đề xuất dựa trên thông lệ bảo dưỡng,
+**không** có trong Drivvo. Trộn chung vào `reminders` thì người dùng không phân biệt được
+đâu là dữ liệu của mình, đâu là thứ app tự bịa ra.
 
-Chi phí / Dịch vụ:
-  Tên xe · Công tơ mét · Ngày · Tổng chi phí · Loại chi phí|Loại dịch vụ · … · Ghi chú
-```
+Cùng cấu trúc này dùng luôn cho **xuất dữ liệu** và cho `state.json` đồng bộ lên Drive
+appDataFolder (§4 của `01-PLAN.md`) — một lược đồ, ba đường dùng.
 
-**Mức độ tin cậy:** tên cột lấy trực tiếp từ file locale của Drivvo (chắc chắn).
-**Thứ tự cột** suy ra từ các file export thật bằng tiếng Nga và tiếng Ý (đã đọc từng byte).
-Chưa ai quan sát được một file export tiếng Việt thật. → Vẫn cần bạn xuất thử 1 file để chốt.
+### 7.3 Trình nhập liệu vẫn cần tự ánh xạ cột
 
-### 7.2 Những cái bẫy khi parse (đã xác minh trên file export thật)
+Giữ nguyên thiết kế cho phép người dùng **tự ánh xạ cột** khi nhập CSV/XLSX, vì:
+- Người dùng khác có thể đến từ Fuelio, Fuelly, hoặc bảng tính tự gõ.
+- Lược đồ của mọi app đều trôi theo phiên bản (bản export Drivvo đã từng có 19 / 24 / 29 / 30 cột).
 
-| Bẫy | Chi tiết |
-|---|---|
-| **Số cột thay đổi theo phiên bản** | Đã thấy 19 / 24 / 29 / 30 cột. → **Khớp theo tên cột (đã trim, không phân biệt hoa thường), TUYỆT ĐỐI không khớp theo vị trí.** |
-| **Cờ đổ đầy là chữ** | `Vâng` / `Không`, không phải `1`/`0` |
-| **Dấu thập phân lẫn lộn trong cùng một dòng** | Giá và thể tích dùng dấu chấm (`37.52`), nhưng ô "Tiết kiệm nhiên liệu" dùng dấu phẩy **và** kèm đơn vị (`"6,414 л/100км"`) → **bỏ hẳn ô này, đừng parse.** Ta tự tính lại |
-| **Ô nhiên liệu thứ 2/thứ 3 không dùng** | Ghi literal `"0"` kèm chữ "Không" đã bản địa hoá → dễ nhận nhầm thành giá trị thật |
-| **ODO `0.0`** | Nghĩa là "không ghi", không phải "xe mới" — khớp đúng quy tắc ở §3.3 |
-| **Không có cột tiền tệ** | Ở bất kỳ lược đồ nào |
-| **Export web không escape dấu nháy kép** | Sinh ô bằng `` `"${e}"` `` thẳng tuột → một ghi chú có chứa `"` sẽ làm hỏng cả dòng |
-| **Định dạng ngày** | `yyyy-MM-dd HH:mm:ss` |
-| **Đảo cực cờ đổ đầy giữa các app** | Drivvo/LubeLog lưu `is_full_tank` (mặc định đúng); aCar/Fuelio lưu ngược lại (`partial`). Hiểu nhầm chiều là **đảo ngược toàn bộ dữ liệu một cách âm thầm** |
+Nhưng đây **không còn là đường đi chính**, và không chặn P6.
 
-### 7.3 Thiết kế trình nhập liệu
-
-Vì lược đồ trôi theo phiên bản, trình nhập liệu **cho người dùng tự ánh xạ cột**
-(chọn cột nguồn ↔ trường đích, có xem trước và báo lỗi từng dòng), với bộ ánh xạ sẵn cho
-tiếng Việt / tiếng Anh. Nhờ vậy nhập được cả từ Fuelio, Fuelly hay file tự gõ.
+> **Bẫy đảo cực cờ đổ đầy:** Drivvo/LubeLog lưu `is_full_tank` (mặc định đúng);
+> aCar/Fuelio lưu ngược lại (`partial`). Hiểu nhầm chiều sẽ **đảo ngược toàn bộ dữ liệu
+> một cách âm thầm**. Luôn hỏi lại người dùng ý nghĩa cột này khi nhập từ nguồn lạ.
 
 > **Chuẩn hoá Unicode — bắt buộc với tiếng Việt.** macOS chuẩn hoá chuỗi về **NFD**,
-> nên `Nguyễn Văn Đức` từ một file tạo trên máy Mac sẽ về dưới dạng 19 code unit thay vì 14.
+> nên `Nguyễn Văn Đức` từ file tạo trên Mac sẽ về dạng 19 code unit thay vì 14.
 > Hiển thị giống hệt nhau nhưng `===`, sắp xếp và khử trùng lặp đều sai.
 > → Gọi `String(v).normalize('NFC')` ở **mọi** biên nhập liệu.
+
+### 7.4 Luật validate khi nhập (đã chạy thật trên file hiện có: 193 check, pass hết)
+
+| Nhóm | Kiểm tra |
+|---|---|
+| Schema | Trường bắt buộc có mặt; `kind` và `fuel_type` thuộc enum; `is_full_tank`/`missed_fill` là bool |
+| Tham chiếu | `vehicle_id` tồn tại; `rule_id` của reminder tồn tại; `id` không trùng |
+| Thời gian | Ngày không ở tương lai; `due_date` của reminder sau `anchor_date` |
+| ODO | Không lùi trong chuỗi `fuel_entries` của cùng một xe; `due_odometer_km` > `anchor_odometer_km` |
+| Tiền | Có `total_amount`; nếu đủ cả 3 trường thì `quantity × unit_price ≈ total_amount` (sai lệch ≤ 1%) |
+| Hợp lý | L/100km ước tính nằm trong `consumption_min…max` **theo loại xe** (§3.4) |
 
 ## 8. Nguồn tham khảo
 

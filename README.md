@@ -25,11 +25,14 @@ Chạy hoàn toàn phía trình duyệt, host trên GitHub Pages, dữ liệu th
 
 ## Dữ liệu mẫu
 
-> ⚠️ **Không có trong repo.** Bộ dữ liệu seed là lịch sử phương tiện thật, nằm trong `.gitignore`
-> vì repo này public. File ở máy local: `data/VehicleManagement-seed-drivvo.xlsx` (workbook 11 sheet)
-> và `data/csv/` (6 file CSV cho trình nhập liệu).
+> ⚠️ **Không có trong repo.** Toàn bộ `data/` nằm trong `.gitignore` vì repo này public và
+> nội dung là lịch sử phương tiện thật. Xem [`data/README.md`](data/README.md).
+>
+> File chính ở máy local: **`data/vehicle-management-import.json`** — format
+> `vehicle-management/import` v1, là đường nhập liệu chính thức của app.
 
-Nguồn: 7 ảnh chụp màn hình app Drivvo (02/10/2026) — 2 phương tiện, 18 bản ghi nhiên liệu,
+Nguồn: **7 ảnh chụp màn hình app Drivvo** (02/10/2026). Drivvo **không có chức năng xuất file**,
+nên ảnh là nguồn duy nhất và dữ liệu được chép tay: 2 phương tiện, 18 bản ghi nhiên liệu,
 3 bản ghi bảo trì. Các con số tổng hợp dưới đây **không phải dữ liệu cá nhân** và được dùng làm
 bộ test vàng cho engine tính toán ở giai đoạn P3.
 

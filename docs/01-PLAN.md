@@ -192,11 +192,14 @@ Có một khoảng tranh chấp nhỏ không thể tránh. **Phải tự viết 
 - ✅ Xong khi: **chế độ máy bay — mở app, thêm bản ghi, xem lịch sử, deep link đều chạy.**
 
 ### P6 — Nhập / Xuất
-- Trình nhập có **giao diện tự ánh xạ cột** (`03-DATA-MODEL.md` §7.3), kèm bộ ánh xạ sẵn cho Drivvo VN/EN.
+- Nhập file `vehicle-management/import` v1 (`03-DATA-MODEL.md` §7.2) — đây là đường đi chính.
+  Bộ dữ liệu lịch sử đã sẵn ở `data/vehicle-management-import.json`.
+- Thêm **giao diện tự ánh xạ cột** cho CSV/XLSX từ nguồn khác (§7.3) — thứ yếu, không chặn P6.
 - Xuất `.xlsx` qua `write-excel-file`, import động.
 - Định dạng số VN: ghi mã `#,##0" ₫"` và `dd/mm/yyyy` **tường minh** — mã định dạng dựng sẵn của Excel
   bị bản địa hoá theo máy người xem, mã tự định nghĩa thì không.
-- ✅ Xong khi: xuất ra rồi nhập lại, dữ liệu không đổi.
+- ✅ Xong khi: (a) nhập `data/vehicle-management-import.json` ra đúng 2 xe / 18 bản ghi nhiên liệu /
+  3 bản ghi bảo trì và các chỉ số khớp số vàng ở P3; (b) xuất ra rồi nhập lại, dữ liệu không đổi.
 
 ### P7 — Đồng bộ Google Drive
 - GIS token client. Scope: `openid email profile` + `drive.appdata` + `drive.file`.
@@ -256,7 +259,9 @@ Kiểm tra khả dụng tự động, Lighthouse ≥ 90 / ≥ 95, đọc thử n
 - Phân loại của `calendar.app.created` → chỉ Cloud Console trả lời được (thêm scope vào trình chọn
   và xem nó rơi vào nhóm nào). **Mất 2 phút**, làm khi nào cần tới phương án C.
 - Popup `initTokenClient` bên trong PWA standalone trên iOS → test máy thật ở P7.
-- Có file export Drivvo tiếng Việt thật nào không → **cần bạn xuất thử 1 file**.
+- ~~File export Drivvo~~ — **đã khép lại 03/10/2026: Drivvo không có chức năng xuất file.**
+  Ảnh chụp màn hình là nguồn duy nhất; dữ liệu đã chép tay xong và validate đạt (193 check).
+  Format import chính thức là format gốc của app, không phải của Drivvo.
 - Giới hạn dung lượng của appDataFolder → Drive v3 không công bố.
 - Hiển thị thật của `.xlsx` trong Excel trên máy locale vi-VN → kiểm ở P6.
 
@@ -279,6 +284,7 @@ bước kiểm chứng này đáng làm **trước** khi viết code — engine 
 | 3 | **Repo mới riêng** | Tách khỏi `click-mono-repo`. Chốt tên repo **trước** P0 — đổi tên sau sẽ để lại service worker "thây ma" |
 
 ### Còn lại cần bạn làm
-- [ ] Chốt tên repo (ảnh hưởng `base`, `scope`, `start_url` — đổi sau rất phiền).
-- [ ] Xuất thử 1 file từ Drivvo để chốt bảng ánh xạ cột (làm trước P6 là được).
-- [ ] Điền đơn giá xăng vào sheet `ThamSo` (ô vàng) nếu muốn xem ngay số L/100km.
+- [x] ~~Chốt tên repo~~ — `p29hieu/VehicleManagement`, đã deploy.
+- [x] ~~Xuất file từ Drivvo~~ — không làm được, đã chuyển sang chép tay từ ảnh. Xong.
+- [ ] Điền `settings.fuel_prices.ron95` trong `data/vehicle-management-import.json`
+      (hoặc ô vàng sheet `ThamSo`) để đổi từ **ước tính** sang số L/100km thật.
