@@ -1,0 +1,65 @@
+/* Design tokens — see docs/02-UIUX.md.
+   Direction: "utilitarian công nghiệp" — fuel-pump displays and Vietnamese receipts.
+   Light is the default on purpose: the app is used outdoors, at a petrol pump, in sun. */
+:root {
+  --c-bg: oklch(98.5% 0.004 95);
+  --c-surface: oklch(100% 0 0);
+  --c-surface-sunk: oklch(96.5% 0.005 95);
+  --c-ink: oklch(19% 0.015 260);
+  --c-ink-soft: oklch(48% 0.012 260);
+  --c-ink-faint: oklch(54% 0.008 260); /* AA: 4.85:1 on --c-bg (measured) */
+  --c-line: oklch(89% 0.006 260);
+
+  --c-brand: oklch(38% 0.078 195);
+  --c-brand-hi: oklch(46% 0.09 195);
+  --c-brand-ink: oklch(96% 0.01 195);
+
+  /* Semantic, not decorative: amber is always fuel, clay is always maintenance. */
+  --c-fuel: oklch(72% 0.17 62);
+  --c-service: oklch(55% 0.11 35);
+  --c-expense: oklch(58% 0.09 285);
+  --c-danger: oklch(53% 0.2 27);
+  --c-ok: oklch(58% 0.14 152);
+
+  --f-sans: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --t-amount: clamp(2rem, 1.2rem + 4vw, 3.25rem);
+  --t-title: clamp(1.35rem, 1.1rem + 1.1vw, 1.8rem);
+  --t-body: clamp(0.95rem, 0.9rem + 0.2vw, 1.05rem);
+  --t-label: 0.75rem;
+
+  --space-gutter: 16px;
+  --radius: 4px;
+  --tap: 44px;
+
+  --dur-fast: 120ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --c-bg: oklch(17% 0.012 260);
+    --c-surface: oklch(21% 0.014 260);
+    --c-surface-sunk: oklch(14% 0.012 260);
+    --c-ink: oklch(95% 0.006 260);
+    --c-ink-soft: oklch(72% 0.01 260);
+    --c-ink-faint: oklch(62% 0.01 260); /* AA: 5.23:1 on --c-bg (measured) */
+    --c-line: oklch(31% 0.012 260);
+    --c-brand: oklch(72% 0.1 195);
+    --c-brand-hi: oklch(80% 0.11 195);
+    --c-brand-ink: oklch(16% 0.02 195);
+  }
+}
+:root[data-theme="dark"] {
+  --c-bg: oklch(17% 0.012 260);
+  --c-surface: oklch(21% 0.014 260);
+  --c-surface-sunk: oklch(14% 0.012 260);
+  --c-ink: oklch(95% 0.006 260);
+  --c-ink-soft: oklch(72% 0.01 260);
+  --c-ink-faint: oklch(62% 0.01 260); /* AA: 5.23:1 on --c-bg (measured) */
+  --c-line: oklch(31% 0.012 260);
+  --c-brand: oklch(72% 0.1 195);
+  --c-brand-hi: oklch(80% 0.11 195);
+  --c-brand-ink: oklch(16% 0.02 195);
+}

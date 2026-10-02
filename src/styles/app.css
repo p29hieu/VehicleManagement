@@ -1,0 +1,141 @@
+/* ── App bar ─────────────────────────────────────────────────────── */
+.appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(10px, env(safe-area-inset-top)) var(--space-gutter) 10px;
+  background: var(--c-brand);
+  color: var(--c-brand-ink);
+  border-bottom: 1px solid color-mix(in oklab, var(--c-brand) 70%, black);
+}
+
+.appbar__brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+/* A fuel drop cut by the road line — the two things this app is about. */
+.appbar__mark {
+  inline-size: 22px;
+  block-size: 22px;
+  flex: none;
+  background: var(--c-fuel);
+  clip-path: polygon(50% 0%, 100% 62%, 85% 95%, 15% 95%, 0% 62%);
+}
+
+.appbar__title {
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.appbar__action {
+  color: inherit;
+  text-decoration: none;
+  font-size: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  opacity: 0.75;
+  padding: 10px 4px;
+  min-block-size: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.appbar__action:hover,
+.appbar__action:focus-visible { opacity: 1; }
+
+/* ── Content ─────────────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: clamp(32px, 8vw, 72px) var(--space-gutter);
+}
+
+/* ── Empty state ─────────────────────────────────────────────────── */
+.empty { max-width: 34ch; text-align: left; }
+
+/* Colour carries meaning: amber = fuel, clay = maintenance, violet = other. */
+.empty__rule {
+  display: block;
+  inline-size: 48px;
+  block-size: 6px;
+  margin-block-end: 20px;
+  background: var(--c-ink-faint);
+}
+.empty[data-kind='fuel'] .empty__rule { background: var(--c-fuel); }
+.empty[data-kind='service'] .empty__rule { background: var(--c-service); }
+.empty[data-kind='expense'] .empty__rule { background: var(--c-expense); }
+.empty[data-kind='report'] .empty__rule { background: var(--c-brand); }
+
+.empty__title {
+  font-size: var(--t-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-block-end: 10px;
+  text-wrap: balance;
+}
+
+.empty__body { color: var(--c-ink-soft); text-wrap: pretty; }
+
+.empty__hint {
+  margin-block-start: 18px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--c-line);
+  font-size: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-ink-faint);
+}
+
+/* ── Tab bar ─────────────────────────────────────────────────────── */
+.tabbar {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr) auto repeat(2, 1fr);
+  align-items: center;
+  gap: 2px;
+  padding: 6px var(--space-gutter) max(6px, env(safe-area-inset-bottom));
+  background: var(--c-surface);
+  border-block-start: 1px solid var(--c-line);
+}
+
+.tabbar__tab {
+  min-block-size: var(--tap);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--c-ink-faint);
+  border-block-start: 2px solid transparent;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.tabbar__tab:hover { color: var(--c-ink-soft); }
+.tabbar__tab.is-active { color: var(--c-brand); border-block-start-color: var(--c-brand); }
+
+.tabbar__fab {
+  inline-size: 56px;
+  block-size: 56px;
+  margin-inline: 8px;
+  margin-block-start: -22px;
+  border: 2px solid var(--c-surface);
+  border-radius: 50%;
+  background: var(--c-brand);
+  color: var(--c-brand-ink);
+  font-size: 1.75rem;
+  line-height: 1;
+  font-family: var(--f-num);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.tabbar__fab:hover:not(:disabled) { transform: scale(1.06); }
+.tabbar__fab:active:not(:disabled) { transform: scale(0.96); }
+.tabbar__fab:disabled { opacity: 0.4; cursor: not-allowed; }
