@@ -3,12 +3,12 @@
 Ứng dụng web PWA tiếng Việt quản lý chi phí & bảo dưỡng phương tiện (ô tô / xe máy, xăng hoặc điện).
 Chạy hoàn toàn phía trình duyệt, host trên GitHub Pages, dữ liệu thuộc về người dùng.
 
-> **Trạng thái: giai đoạn thiết kế.** Chưa có code ứng dụng. Repo hiện chứa đặc tả,
-> kế hoạch triển khai và mô hình dữ liệu.
+> **Trạng thái: P0 xong — đã deploy.** Khung ứng dụng và đường ống deploy đã chạy.
+> Các tab hiện là empty state; phần nhập liệu bắt đầu từ P1.
 
 | | |
 |---|---|
-| Sẽ chạy tại | `https://p29hieu.github.io/VehicleManagement/` |
+| 🔗 Đang chạy tại | **https://p29hieu.github.io/VehicleManagement/** |
 | Vite `base` | `/VehicleManagement/` |
 | Scope OAuth (v1) | `openid email profile` + `drive.appdata` + `drive.file` — **toàn bộ non-sensitive** |
 | Google Calendar | **Hoãn sang v2** — xem [`docs/01-PLAN.md`](docs/01-PLAN.md) §1 |
@@ -58,6 +58,24 @@ giá trị tính độc lập bằng Python: **50/50 cặp khớp, 0 lỗi**. Qu
 Sheet `KiemTraDuLieu` liệt kê 5 vấn đề chất lượng dữ liệu phát hiện từ ảnh Drivvo,
 trong đó 1 vấn đề mức **Cao** (ODO mâu thuẫn ở bản ghi bảo trì của Accent).
 
-## Bước tiếp theo
+## Phát triển
 
-**P0 — dựng khung + đường ống deploy.** Xem [`docs/01-PLAN.md`](docs/01-PLAN.md) §5.
+```bash
+npm install
+npm run dev        # http://localhost:5173/VehicleManagement/
+npm run build      # build + sinh dist/404.html
+npm run typecheck
+```
+
+Push lên `main` là GitHub Actions tự build và deploy.
+
+## Tiến độ
+
+- [x] **P0** Dựng khung + deploy GitHub Pages
+- [ ] **P1** Lõi dữ liệu local (Dexie)
+- [ ] **P2** Design system + nhập liệu nhanh
+- [ ] **P3** Engine tính toán
+- [ ] **P4** Báo cáo · **P5** PWA offline · **P6** Nhập/Xuất Excel
+- [ ] **P7** Đồng bộ Google Drive · **P8** Nhắc nhở · **P9** Dự báo · **P10** Hoàn thiện
+
+Chi tiết từng giai đoạn: [`docs/01-PLAN.md`](docs/01-PLAN.md) §5.
