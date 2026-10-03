@@ -1,0 +1,90 @@
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: oklch(20% 0.02 260 / 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.sheet {
+  inline-size: min(560px, 100%);
+  max-block-size: 92dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-bg);
+  border-start-start-radius: 14px;
+  border-start-end-radius: 14px;
+  box-shadow: 0 -8px 40px oklch(20% 0.02 260 / 0.25);
+  animation: sheet-in 180ms var(--ease-out);
+}
+@keyframes sheet-in {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px var(--space-gutter);
+  border-block-end: 1px solid var(--c-line);
+}
+.sheet__title { font-size: 1rem; font-weight: 800; letter-spacing: -0.01em; }
+.sheet__close {
+  min-inline-size: var(--tap);
+  min-block-size: var(--tap);
+  font-size: 1.1rem;
+  color: var(--c-ink-soft);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.sheet__close:hover { color: var(--c-ink); }
+
+.kindtabs { display: grid; grid-auto-flow: column; gap: 2px; padding: 8px var(--space-gutter) 0; }
+.kindtabs__tab {
+  min-block-size: var(--tap);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--c-ink-soft);
+  background: none;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.kindtabs__tab:hover { color: var(--c-ink); }
+.kindtabs__tab.is-active { color: var(--c-ink); }
+.kindtabs__tab[data-kind='fuel'].is-active { border-block-end-color: var(--c-fuel); }
+.kindtabs__tab[data-kind='service'].is-active { border-block-end-color: var(--c-service); }
+.kindtabs__tab[data-kind='expense'].is-active { border-block-end-color: var(--c-expense); }
+
+.sheet__body {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  gap: 16px;
+  padding: 16px var(--space-gutter);
+}
+
+.sheet__error {
+  padding: 10px 12px;
+  color: var(--c-danger);
+  font-weight: 600;
+  background: color-mix(in oklab, var(--c-danger) 10%, transparent);
+  border-inline-start: 3px solid var(--c-danger);
+  border-radius: var(--radius);
+}
+
+.sheet__foot {
+  display: flex;
+  gap: 10px;
+  padding: 12px var(--space-gutter) max(12px, env(safe-area-inset-bottom));
+  border-block-start: 1px solid var(--c-line);
+  background: var(--c-surface);
+}

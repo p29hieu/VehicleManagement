@@ -1,0 +1,80 @@
+.history { padding-block: 4px 12px; }
+.history__loading { padding: 32px var(--space-gutter); color: var(--c-ink-soft); }
+
+.history__heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 10px var(--space-gutter) 6px;
+  font-size: var(--t-label);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--c-ink-soft);
+  background: linear-gradient(var(--c-bg) 70%, transparent);
+}
+
+.history__list { list-style: none; margin: 0; padding: 0; }
+
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  width: 100%;
+  min-block-size: var(--tap);
+  padding: 12px var(--space-gutter);
+  border: 0;
+  border-block-end: 1px solid var(--c-line);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.row:hover { background: var(--c-surface-sunk); }
+.row:active { background: var(--c-line); }
+
+/* The dot colour is the record type. Scanning the timeline should not require reading. */
+.row__dot {
+  inline-size: 12px;
+  block-size: 12px;
+  margin-block-start: 5px;
+  border-radius: 50%;
+  background: var(--c-ink-faint);
+}
+.row[data-kind='fuel'] .row__dot { background: var(--c-fuel); }
+.row[data-kind='service'] .row__dot { background: var(--c-service); }
+.row[data-kind='expense'] .row__dot { background: var(--c-expense); }
+
+/* A flex item's default min-width is `auto`, so the ellipsis on .row__meta cannot take
+   effect — the row grows past the viewport instead, which clipped the date and amount.
+   Every container in the chain needs min-inline-size: 0 before the text may shrink. */
+.row__main { min-inline-size: 0; display: grid; gap: 2px; }
+.row__top,
+.row__bottom {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-inline-size: 0;
+}
+
+.row__title {
+  font-weight: 600;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row__date { font-size: var(--t-label); color: var(--c-ink-faint); flex: none; }
+
+.row__meta {
+  font-size: 0.8rem;
+  color: var(--c-ink-soft);
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row__amount { font-weight: 600; flex: none; }

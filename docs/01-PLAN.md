@@ -145,11 +145,15 @@ Có một khoảng tranh chấp nhỏ không thể tránh. **Phải tự viết 
 - ✅ Xong khi: deep link `/VehicleManagement/bao-cao` mở được **trong cửa sổ ẩn danh mới**
   (sau lần đầu, service worker che mất lỗi — phải test ẩn danh).
 
-### P1 — Lõi dữ liệu local
+### P1 — Lõi dữ liệu local ✅ *(xong 04/10/2026)*
 - Schema Dexie theo `03-DATA-MODEL.md`. **Đặt tiền tố riêng cho mọi key** — mọi project GitHub Pages
   của cùng một tài khoản dùng **chung một origin**, chung IndexedDB và localStorage.
 - CRUD phương tiện + 3 loại bản ghi; màn hình lịch sử gom nhóm theo tháng.
-- ✅ Xong khi: nhập trọn `data/csv/` và hiển thị đúng.
+- ✅ **Đã xong.** Nhập `data/vehicle-management-import.json` trong trình duyệt: 2 xe,
+  18 bản ghi nhiên liệu, 3 bản ghi bảo dưỡng, 0 lỗi 0 cảnh báo. Timeline hiện đúng 4 nhóm tháng,
+  quãng đường giữa các lần đổ khớp từng con số (299/259/315/292/210/215/331/299 km).
+  CRUD chạy đủ: tạo → sửa → xoá, kèm 2 luật chặn (ODO lùi, thiếu tiền). Dữ liệu bền qua reload.
+  Tương phản WCAG AA đạt trên cả 6 thành phần mới, ở cả light và dark.
 
 ### P2 — Design system & nhập liệu nhanh
 - Token màu/chữ theo `02-UIUX.md`; Be Vietnam Pro + IBM Plex Mono.

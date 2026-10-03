@@ -1,0 +1,20 @@
+.vswitch { position: relative; display: inline-flex; align-items: center; }
+.vswitch--empty, .vswitch__single { font-weight: 800; font-size: 1.05rem; }
+
+.vswitch__select {
+  appearance: none;
+  min-block-size: var(--tap);
+  padding: 4px 22px 4px 8px;
+  font: inherit;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: inherit;
+  background: color-mix(in oklab, var(--c-brand-ink) 14%, transparent);
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.vswitch__select:hover { background: color-mix(in oklab, var(--c-brand-ink) 22%, transparent); }
+.vswitch__select option { color: var(--c-ink); background: var(--c-surface); }
+
+.vswitch__caret { position: absolute; right: 7px; pointer-events: none; font-size: 0.7rem; opacity: 0.8; }

@@ -1,20 +1,38 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { Suspense, lazy, useState } from 'react'
+import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { EmptyState } from './components/EmptyState'
 import { TabBar } from './components/TabBar'
+import { HistoryScreen } from './features/history/HistoryScreen'
+import { EntrySheet, type EntryTarget } from './features/entry/EntrySheet'
+import { VehicleSwitcher } from './features/vehicles/VehicleSwitcher'
+import { useActiveVehicle, useLatestOdometer, useTimeline, useVehicles } from './hooks/useAppData'
 import './styles/app.css'
 
-/**
- * P0 shell. Every tab is an honest empty state — nothing here claims to work yet.
- * Its job is to prove routing, the base path and the deploy pipeline, so that
- * `/VehicleManagement/bao-cao` resolves on a cold load in a fresh incognito window.
- */
+/** Settings pulls in zod and the whole import pipeline, none of which the timeline needs.
+ *  Loading it on demand keeps the first paint lean. */
+const SettingsScreen = lazy(() =>
+  import('./features/settings/SettingsScreen').then((m) => ({ default: m.SettingsScreen })),
+)
+
 export default function App() {
+  const vehicles = useVehicles()
+  const active = useActiveVehicle()
+  const timeline = useTimeline(active?.id)
+  const latestOdo = useLatestOdometer(active?.id)
+  const [sheet, setSheet] = useState<{ open: boolean; target: EntryTarget | null }>({
+    open: false,
+    target: null,
+  })
+  const navigate = useNavigate()
+
+  const hasVehicle = !!active
+
   return (
     <>
       <header className="appbar">
         <div className="appbar__brand">
           <span className="appbar__mark" aria-hidden="true" />
-          <span className="appbar__title">Quản lý xe</span>
+          <VehicleSwitcher vehicles={vehicles ?? []} active={active ?? null} />
         </div>
         <NavLink to="/cai-dat" className="appbar__action">
           Cài đặt
@@ -26,12 +44,19 @@ export default function App() {
           <Route
             path="/"
             element={
-              <EmptyState
-                kind="fuel"
-                title="Chưa có bản ghi nào"
-                body="Lịch sử đổ xăng, bảo dưỡng và chi phí của bạn sẽ hiện ở đây."
-                hint="Giai đoạn P1 sẽ bật phần nhập liệu."
-              />
+              hasVehicle ? (
+                <HistoryScreen
+                  items={timeline}
+                  onOpen={(it) => setSheet({ open: true, target: { kind: it.kind, id: it.id } })}
+                />
+              ) : (
+                <EmptyState
+                  kind="fuel"
+                  title="Chưa có phương tiện nào"
+                  body="Thêm chiếc xe đầu tiên, hoặc nhập dữ liệu đã có sẵn từ file."
+                  action={{ label: 'Mở Cài đặt', onClick: () => void navigate('/cai-dat') }}
+                />
+              )
             }
           />
           <Route
@@ -59,19 +84,25 @@ export default function App() {
           <Route
             path="/cai-dat"
             element={
-              <EmptyState
-                kind="expense"
-                title="Cài đặt"
-                body="Phương tiện, đơn giá nhiên liệu, đồng bộ Google Drive, xuất Excel."
-                hint="Giai đoạn P6–P7."
-              />
+              <Suspense fallback={<p className="route-loading">Đang tải…</p>}>
+                <SettingsScreen />
+              </Suspense>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
-      <TabBar />
+      <TabBar canAdd={hasVehicle} onAdd={() => setSheet({ open: true, target: null })} />
+
+      {sheet.open && active && (
+        <EntrySheet
+          vehicle={active}
+          latestOdo={latestOdo ?? null}
+          target={sheet.target}
+          onClose={() => setSheet({ open: false, target: null })}
+        />
+      )}
     </>
   )
 }

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import './styles/tokens.css'
 import './styles/global.css'
+import './styles/controls.css'
 
 const root = document.getElementById('root')
 if (!root) throw new Error('#root not found')

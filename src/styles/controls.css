@@ -1,0 +1,167 @@
+/* ── Field ───────────────────────────────────────────────────────── */
+.field { display: grid; gap: 6px; }
+.field__label {
+  font-size: var(--t-label);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-soft);
+}
+.field__msg { font-size: 0.78rem; color: var(--c-ink-soft); }
+.field__msg--error { color: var(--c-danger); font-weight: 600; }
+
+/* ── Inputs ──────────────────────────────────────────────────────── */
+.input {
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--c-ink);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.input:hover { border-color: var(--c-ink-faint); }
+.input:focus-visible { border-color: var(--c-brand); }
+.field[data-invalid] .input { border-color: var(--c-danger); }
+
+/* ── Money ───────────────────────────────────────────────────────── */
+.money { display: flex; align-items: baseline; gap: 8px; }
+.money__input {
+  flex: 1;
+  min-width: 0;
+  min-block-size: var(--tap);
+  padding: 8px 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--c-ink);
+  background: transparent;
+  border: 0;
+  border-block-end: 2px solid var(--c-line);
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.money__input:focus-visible { border-block-end-color: var(--c-brand); outline: none; }
+.money__suffix { color: var(--c-ink-soft); font-weight: 600; flex: none; }
+
+/* The amount is the primary input on the fuel form, so it gets display-sized type. */
+.money--big .money__input { font-size: var(--t-amount); font-weight: 800; letter-spacing: -0.02em; }
+.money--big .money__suffix { font-size: 1.25rem; }
+
+/* ── Number ──────────────────────────────────────────────────────── */
+.numfield { display: grid; gap: 6px; }
+.numfield__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  padding-inline-end: 12px;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.numfield__row:focus-within { border-color: var(--c-brand); }
+.numfield__input {
+  flex: 1;
+  min-width: 0;
+  min-block-size: var(--tap);
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--c-ink);
+  background: transparent;
+  border: 0;
+}
+.numfield__input:focus-visible { outline: none; }
+.numfield__suffix { color: var(--c-ink-soft); flex: none; }
+.numfield__suggest {
+  justify-self: start;
+  min-block-size: 32px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--c-brand);
+  background: transparent;
+  border: 1px dashed var(--c-brand);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.numfield__suggest:hover { background: color-mix(in oklab, var(--c-brand) 10%, transparent); }
+
+/* ── Segmented ───────────────────────────────────────────────────── */
+.segmented { display: grid; grid-auto-flow: column; gap: 6px; }
+.segmented__opt {
+  min-block-size: var(--tap);
+  padding: 8px 10px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--c-ink-soft);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.segmented__opt:hover { border-color: var(--c-ink-faint); }
+.segmented__opt.is-active {
+  color: var(--c-brand-ink);
+  background: var(--c-brand);
+  border-color: var(--c-brand);
+}
+
+/* ── Chips ───────────────────────────────────────────────────────── */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  min-block-size: 36px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--c-ink-soft);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.chip:hover { border-color: var(--c-ink-faint); color: var(--c-ink); }
+.chip.is-active {
+  color: var(--c-brand-ink);
+  background: var(--c-service);
+  border-color: var(--c-service);
+  font-weight: 600;
+}
+
+/* ── Misc ────────────────────────────────────────────────────────── */
+.check { display: flex; align-items: center; gap: 10px; min-block-size: var(--tap); cursor: pointer; }
+.check input { inline-size: 20px; block-size: 20px; accent-color: var(--c-brand); }
+
+.disclose {
+  justify-self: start;
+  min-block-size: var(--tap);
+  padding: 8px 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--c-brand);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.btn {
+  min-block-size: var(--tap);
+  padding: 10px 18px;
+  font: inherit;
+  font-weight: 700;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.btn--primary { background: var(--c-brand); color: var(--c-brand-ink); flex: 1; }
+.btn--primary:hover { background: var(--c-brand-hi); }
+.btn--ghost { background: var(--c-surface); color: var(--c-ink); border-color: var(--c-line); }
+.btn--ghost:hover { border-color: var(--c-ink-faint); }
+.btn--danger { background: transparent; color: var(--c-danger); border-color: var(--c-danger); }
+.btn--danger:hover { background: color-mix(in oklab, var(--c-danger) 12%, transparent); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }

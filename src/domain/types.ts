@@ -1,0 +1,112 @@
+/** Entity types — mirror of docs/03-DATA-MODEL.md §1. */
+
+export const VEHICLE_KINDS = ['car', 'motorcycle', 'ev_car', 'ev_motorcycle', 'truck'] as const
+export type VehicleKind = (typeof VEHICLE_KINDS)[number]
+
+export const FUEL_TYPES = ['ron95', 'e5ron92', 'diesel', 'electric', 'hybrid'] as const
+export type FuelType = (typeof FUEL_TYPES)[number]
+
+export const ANCHOR_KINDS = ['service', 'completion', 'baseline'] as const
+export type AnchorKind = (typeof ANCHOR_KINDS)[number]
+
+/** Plausibility band in L/100km (or kWh/100km for EVs) — docs §3.4.
+ *  A car-oriented band would wrongly reject a motorcycle at ~2.3 L/100km. */
+export const CONSUMPTION_BAND: Record<VehicleKind, readonly [number, number]> = {
+  motorcycle: [1.2, 6],
+  car: [4, 25],
+  truck: [5, 40],
+  ev_car: [8, 35],
+  ev_motorcycle: [2, 12],
+}
+
+export interface Vehicle {
+  id: string
+  name: string
+  kind: VehicleKind
+  make: string | null
+  model: string | null
+  plate: string | null
+  year: number | null
+  fuel_type: FuelType
+  tank_capacity_l: number | null
+  battery_kwh: number | null
+  initial_odometer_km: number
+  odometer_offset_km: number
+  consumption_min: number
+  consumption_max: number
+  is_active: boolean
+  note: string | null
+  updated_at: string
+}
+
+export interface FuelEntry {
+  id: string
+  vehicle_id: string
+  /** ISO yyyy-mm-dd. Stored as a string so sorting is lexicographic and timezone-free. */
+  date: string
+  /** Nullable on purpose. `0` means "not recorded", never "brand new vehicle" — docs §3.3. */
+  odometer_km: number | null
+  quantity: number | null
+  unit_price: number | null
+  total_amount: number | null
+  /** The single most load-bearing field in the model — docs §3.1. */
+  is_full_tank: boolean
+  missed_fill: boolean
+  station: string | null
+  payment_method: string | null
+  note: string | null
+  updated_at: string
+}
+
+export interface ServiceRecord {
+  id: string
+  vehicle_id: string
+  date: string
+  odometer_km: number | null
+  items: string[]
+  total_amount: number | null
+  workshop: string | null
+  note: string | null
+  updated_at: string
+}
+
+export interface ExpenseRecord {
+  id: string
+  vehicle_id: string
+  date: string
+  odometer_km: number | null
+  category: string
+  total_amount: number | null
+  note: string | null
+  updated_at: string
+}
+
+export interface AppSettings {
+  id: 'singleton'
+  currency: string
+  distance_unit: string
+  volume_unit: string
+  locale: string
+  timezone: string
+  /** Price per litre / kWh by fuel type. Null until the user fills it in; without it
+   *  total_amount cannot be turned into a quantity, so L/100km stays unavailable. */
+  fuel_prices: Partial<Record<FuelType, number | null>>
+  active_vehicle_id: string | null
+  updated_at: string
+}
+
+/** One row in the unified history timeline. */
+export type RecordKind = 'fuel' | 'service' | 'expense'
+
+export interface TimelineItem {
+  kind: RecordKind
+  id: string
+  vehicle_id: string
+  date: string
+  odometer_km: number | null
+  total_amount: number | null
+  title: string
+  subtitle: string | null
+  /** Distance since the previous record of the same vehicle — the number users actually want. */
+  delta_km: number | null
+}

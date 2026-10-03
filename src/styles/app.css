@@ -48,15 +48,23 @@
 .appbar__action:focus-visible { opacity: 1; }
 
 /* ── Content ─────────────────────────────────────────────────────── */
+/* The timeline scrolls here, so the region must not centre its content.
+   The empty state centres itself instead. */
 .content {
   flex: 1;
-  display: grid;
-  place-items: center;
-  padding: clamp(32px, 8vw, 72px) var(--space-gutter);
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* ── Empty state ─────────────────────────────────────────────────── */
-.empty { max-width: 34ch; text-align: left; }
+.empty {
+  max-inline-size: 34ch;
+  margin: clamp(28px, 11vh, 88px) auto;
+  padding-inline: var(--space-gutter);
+  text-align: left;
+}
+.empty__action { margin-block-start: 18px; }
 
 /* Colour carries meaning: amber = fuel, clay = maintenance, violet = other. */
 .empty__rule {
@@ -139,3 +147,5 @@
 .tabbar__fab:hover:not(:disabled) { transform: scale(1.06); }
 .tabbar__fab:active:not(:disabled) { transform: scale(0.96); }
 .tabbar__fab:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.route-loading { padding: 32px var(--space-gutter); color: var(--c-ink-soft); }

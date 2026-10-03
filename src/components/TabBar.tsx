@@ -7,14 +7,25 @@ const TABS = [
   { to: '/cai-dat', label: 'Cài đặt', end: false },
 ] as const
 
-export function TabBar() {
+interface Props {
+  canAdd: boolean
+  onAdd: () => void
+}
+
+export function TabBar({ canAdd, onAdd }: Props) {
   return (
     <nav className="tabbar" aria-label="Điều hướng chính">
       {TABS.slice(0, 2).map((t) => (
         <Tab key={t.to} {...t} />
       ))}
 
-      <button type="button" className="tabbar__fab" disabled aria-label="Thêm bản ghi (chưa khả dụng)">
+      <button
+        type="button"
+        className="tabbar__fab"
+        onClick={onAdd}
+        disabled={!canAdd}
+        aria-label={canAdd ? 'Thêm bản ghi' : 'Thêm bản ghi (cần có phương tiện trước)'}
+      >
         <span aria-hidden="true">+</span>
       </button>
 
@@ -27,11 +38,7 @@ export function TabBar() {
 
 function Tab({ to, label, end }: { to: string; label: string; end: boolean }) {
   return (
-    <NavLink
-      to={to}
-      end={end}
-      className={({ isActive }) => `tabbar__tab${isActive ? ' is-active' : ''}`}
-    >
+    <NavLink to={to} end={end} className={({ isActive }) => `tabbar__tab${isActive ? ' is-active' : ''}`}>
       {label}
     </NavLink>
   )
