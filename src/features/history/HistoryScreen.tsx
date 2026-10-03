@@ -28,6 +28,9 @@ function groupByMonth(items: TimelineItem[]): MonthBlock[] {
 
 export function HistoryScreen({ items, onOpen }: Props) {
   const blocks = useMemo(() => groupByMonth(items ?? []), [items])
+  /** Position of each row in the flat timeline, so the entrance cascade is continuous
+   *  across month headings rather than restarting inside every group. */
+  const order = useMemo(() => new Map((items ?? []).map((it, i) => [it, i])), [items])
 
   if (items === undefined) return <p className="history__loading">Đang tải…</p>
   if (!items.length)
@@ -49,7 +52,15 @@ export function HistoryScreen({ items, onOpen }: Props) {
           </h2>
           <ul className="history__list">
             {b.items.map((it) => (
-              <li key={`${it.kind}-${it.id}`}>
+              <li
+                key={`${it.kind}-${it.id}`}
+                className="animate-rise"
+                // The index runs across the whole timeline, not per month, so the
+                // cascade falls continuously down the page instead of restarting at
+                // every heading. Capped so a long list does not leave the last rows
+                // waiting half a second before they appear.
+                style={{ '--i': Math.min(order.get(it) ?? 0, 10) } as React.CSSProperties}
+              >
                 <Row item={it} onOpen={onOpen} />
               </li>
             ))}

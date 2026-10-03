@@ -1,4 +1,6 @@
-*, *::before, *::after { box-sizing: border-box; }
+*,
+*::before,
+*::after { box-sizing: border-box; }
 * { margin: 0; }
 
 html { -webkit-text-size-adjust: 100%; }
@@ -8,7 +10,11 @@ body {
   font-size: var(--t-body);
   line-height: 1.5;
   color: var(--c-ink);
-  background: var(--c-bg);
+  /* The flat colour is the real background; the radials are atmosphere layered on top.
+     Both stops stay within ~3% lightness of --c-bg so text contrast is unaffected. */
+  background-color: var(--c-bg);
+  background-image: var(--g-page);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
 }
@@ -23,15 +29,50 @@ body {
 :focus-visible {
   outline: 2px solid var(--c-brand-hi);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Shared keyframes ────────────────────────────────────────────── */
+@keyframes rise {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* Entrance used by lists. `--i` is set inline per row to stagger the cascade. */
+.animate-rise {
+  animation: rise var(--dur) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 32ms);
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────── */
+/* Everything above is decoration. Someone who asked the OS for less motion gets the
+   final state immediately — not a faster version of the same movement. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .animate-rise { animation: none; }
 }
-
-#root { min-height: 100dvh; display: flex; flex-direction: column; }

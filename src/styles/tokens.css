@@ -1,7 +1,12 @@
 /* Design tokens — see docs/02-UIUX.md.
-   Direction: "utilitarian công nghiệp" — fuel-pump displays and Vietnamese receipts.
-   Light is the default on purpose: the app is used outdoors, at a petrol pump, in sun. */
+   Direction: "utilitarian công nghiệp" with depth — fuel-pump displays and Vietnamese
+   receipts, layered rather than flat.
+
+   Light stays the default on purpose: the app is used outdoors, at a petrol pump, in sun.
+   Gradients therefore live in SURFACES, BORDERS and NAVIGATION — never behind body text,
+   where they would eat the contrast that makes the screen readable in daylight. */
 :root {
+  /* ── Base ──────────────────────────────────────────────────────── */
   --c-bg: oklch(98.5% 0.004 95);
   --c-surface: oklch(100% 0 0);
   --c-surface-sunk: oklch(96.5% 0.005 95);
@@ -9,18 +14,51 @@
   --c-ink-soft: oklch(48% 0.012 260);
   --c-ink-faint: oklch(54% 0.008 260); /* AA: 4.85:1 on --c-bg (measured) */
   --c-line: oklch(89% 0.006 260);
+  --c-line-soft: oklch(93% 0.005 260);
 
+  /* ── Brand ─────────────────────────────────────────────────────── */
   --c-brand: oklch(38% 0.078 195);
   --c-brand-hi: oklch(46% 0.09 195);
+  --c-brand-deep: oklch(30% 0.065 200);
   --c-brand-ink: oklch(96% 0.01 195);
+  /* Text placed on a --g-* gradient. Those gradients stay mid-to-dark in both
+     themes, so this stays light in both — unlike --c-brand-ink, which flips. */
+  --c-on-brand: oklch(97% 0.008 195);
 
-  /* Semantic, not decorative: amber is always fuel, clay is always maintenance. */
+  /* ── Semantic: tied to the kind of cost, never decorative ──────── */
   --c-fuel: oklch(72% 0.17 62);
-  --c-service: oklch(55% 0.11 35);
+  --c-fuel-deep: oklch(62% 0.16 50);
+  --c-service: oklch(53% 0.11 35); /* AA on --c-on-brand: 4.80 dark / 5.09 light (measured) */
+  --c-service-deep: oklch(46% 0.1 28);
   --c-expense: oklch(58% 0.09 285);
+  --c-expense-deep: oklch(48% 0.1 288);
   --c-danger: oklch(53% 0.2 27);
   --c-ok: oklch(58% 0.14 152);
 
+  /* ── Gradients ─────────────────────────────────────────────────── */
+  --g-brand: linear-gradient(135deg, var(--c-brand-hi) 0%, var(--c-brand) 46%, var(--c-brand-deep) 100%);
+  --g-fuel: linear-gradient(135deg, var(--c-fuel) 0%, var(--c-fuel-deep) 100%);
+  --g-service: linear-gradient(135deg, var(--c-service) 0%, var(--c-service-deep) 100%);
+  --g-expense: linear-gradient(135deg, var(--c-expense) 0%, var(--c-expense-deep) 100%);
+
+  /* Atmosphere behind the whole page. Both stops sit within ~3% lightness of --c-bg,
+     so every contrast ratio measured against --c-bg still holds. */
+  --g-page:
+    radial-gradient(120% 70% at 85% -5%, oklch(95% 0.03 62 / 0.5) 0%, transparent 62%),
+    radial-gradient(100% 60% at 0% 0%, oklch(95% 0.02 195 / 0.45) 0%, transparent 58%);
+
+  /* Cards: a near-invisible vertical wash that gives a surface an edge without a shadow. */
+  --g-surface: linear-gradient(180deg, oklch(100% 0 0) 0%, oklch(99% 0.003 95) 100%);
+  --g-sheen: linear-gradient(180deg, oklch(100% 0 0 / 0.7) 0%, transparent 100%);
+
+  /* ── Elevation ─────────────────────────────────────────────────── */
+  --e-1: 0 1px 2px oklch(25% 0.02 260 / 0.05);
+  --e-2: 0 2px 4px oklch(25% 0.02 260 / 0.06), 0 1px 2px oklch(25% 0.02 260 / 0.04);
+  --e-3: 0 8px 20px oklch(25% 0.02 260 / 0.1), 0 2px 6px oklch(25% 0.02 260 / 0.06);
+  --e-4: 0 -10px 44px oklch(22% 0.02 260 / 0.22);
+  --e-brand: 0 6px 18px oklch(38% 0.078 195 / 0.32);
+
+  /* ── Type ──────────────────────────────────────────────────────── */
   --f-sans: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-num: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
@@ -29,14 +67,24 @@
   --t-body: clamp(0.95rem, 0.9rem + 0.2vw, 1.05rem);
   --t-label: 0.75rem;
 
+  /* ── Space & shape ─────────────────────────────────────────────── */
   --space-gutter: 16px;
-  --radius: 4px;
+  --radius: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
   --tap: 44px;
 
-  --dur-fast: 120ms;
+  /* ── Motion ────────────────────────────────────────────────────── */
+  --dur-fast: 140ms;
+  --dur: 240ms;
+  --dur-slow: 420ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Overshoots slightly — what makes a panel feel physical rather than linear. */
+  --ease-spring: cubic-bezier(0.34, 1.46, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
+/* ── Dark ────────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --c-bg: oklch(17% 0.012 260);
@@ -46,20 +94,52 @@
     --c-ink-soft: oklch(72% 0.01 260);
     --c-ink-faint: oklch(62% 0.01 260); /* AA: 5.23:1 on --c-bg (measured) */
     --c-line: oklch(31% 0.012 260);
+    --c-line-soft: oklch(26% 0.012 260);
+
     --c-brand: oklch(72% 0.1 195);
     --c-brand-hi: oklch(80% 0.11 195);
+    --c-brand-deep: oklch(58% 0.09 198);
     --c-brand-ink: oklch(16% 0.02 195);
+    --c-on-brand: oklch(95% 0.012 195);
+
+    --g-brand: linear-gradient(135deg, oklch(34% 0.06 198) 0%, oklch(26% 0.05 200) 54%, oklch(21% 0.04 205) 100%);
+    --g-page:
+      radial-gradient(120% 70% at 85% -5%, oklch(32% 0.05 62 / 0.26) 0%, transparent 62%),
+      radial-gradient(100% 60% at 0% 0%, oklch(30% 0.05 195 / 0.3) 0%, transparent 58%);
+    --g-surface: linear-gradient(180deg, oklch(22.5% 0.015 260) 0%, oklch(20% 0.013 260) 100%);
+    --g-sheen: linear-gradient(180deg, oklch(100% 0 0 / 0.06) 0%, transparent 100%);
+
+    --e-1: 0 1px 2px oklch(0% 0 0 / 0.3);
+    --e-2: 0 2px 6px oklch(0% 0 0 / 0.35);
+    --e-3: 0 8px 22px oklch(0% 0 0 / 0.45);
+    --e-4: 0 -10px 44px oklch(0% 0 0 / 0.55);
+    --e-brand: 0 6px 18px oklch(0% 0 0 / 0.5);
   }
 }
+
 :root[data-theme="dark"] {
   --c-bg: oklch(17% 0.012 260);
   --c-surface: oklch(21% 0.014 260);
   --c-surface-sunk: oklch(14% 0.012 260);
   --c-ink: oklch(95% 0.006 260);
   --c-ink-soft: oklch(72% 0.01 260);
-  --c-ink-faint: oklch(62% 0.01 260); /* AA: 5.23:1 on --c-bg (measured) */
+  --c-ink-faint: oklch(62% 0.01 260);
   --c-line: oklch(31% 0.012 260);
+  --c-line-soft: oklch(26% 0.012 260);
   --c-brand: oklch(72% 0.1 195);
   --c-brand-hi: oklch(80% 0.11 195);
+  --c-brand-deep: oklch(58% 0.09 198);
   --c-brand-ink: oklch(16% 0.02 195);
+  --c-on-brand: oklch(95% 0.012 195);
+  --g-brand: linear-gradient(135deg, oklch(34% 0.06 198) 0%, oklch(26% 0.05 200) 54%, oklch(21% 0.04 205) 100%);
+  --g-page:
+    radial-gradient(120% 70% at 85% -5%, oklch(32% 0.05 62 / 0.26) 0%, transparent 62%),
+    radial-gradient(100% 60% at 0% 0%, oklch(30% 0.05 195 / 0.3) 0%, transparent 58%);
+  --g-surface: linear-gradient(180deg, oklch(22.5% 0.015 260) 0%, oklch(20% 0.013 260) 100%);
+  --g-sheen: linear-gradient(180deg, oklch(100% 0 0 / 0.06) 0%, transparent 100%);
+  --e-1: 0 1px 2px oklch(0% 0 0 / 0.3);
+  --e-2: 0 2px 6px oklch(0% 0 0 / 0.35);
+  --e-3: 0 8px 22px oklch(0% 0 0 / 0.45);
+  --e-4: 0 -10px 44px oklch(0% 0 0 / 0.55);
+  --e-brand: 0 6px 18px oklch(0% 0 0 / 0.5);
 }

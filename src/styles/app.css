@@ -1,33 +1,50 @@
 /* ── App bar ─────────────────────────────────────────────────────── */
 .appbar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: max(10px, env(safe-area-inset-top)) var(--space-gutter) 10px;
-  background: var(--c-brand);
-  color: var(--c-brand-ink);
-  border-bottom: 1px solid color-mix(in oklab, var(--c-brand) 70%, black);
+  background-image: var(--g-brand);
+  color: var(--c-on-brand);
+  box-shadow: var(--e-2);
+  isolation: isolate;
 }
 
-.appbar__brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* A one-pixel highlight along the bottom edge. It reads as a lit surface rather than
+   a block of colour, which is what separates a gradient from a flat fill. */
+.appbar::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  block-size: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    oklch(100% 0 0 / 0.28) 22%,
+    oklch(100% 0 0 / 0.28) 78%,
+    transparent 100%
+  );
+}
+
+.appbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
 
 /* A fuel drop cut by the road line — the two things this app is about. */
 .appbar__mark {
   inline-size: 22px;
   block-size: 22px;
   flex: none;
-  background: var(--c-fuel);
+  background-image: var(--g-fuel);
   clip-path: polygon(50% 0%, 100% 62%, 85% 95%, 15% 95%, 0% 62%);
-}
-
-.appbar__title {
-  font-weight: 800;
-  font-size: 1.05rem;
-  letter-spacing: -0.015em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  animation: pop var(--dur-slow) var(--ease-spring) backwards;
+  filter: drop-shadow(0 1px 3px oklch(0% 0 0 / 0.25));
 }
 
 .appbar__action {
@@ -37,15 +54,22 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 600;
-  opacity: 0.75;
-  padding: 10px 4px;
+  opacity: 0.78;
+  padding: 10px;
+  border-radius: var(--radius);
   min-block-size: var(--tap);
   display: inline-flex;
   align-items: center;
-  transition: opacity var(--dur-fast) var(--ease-out);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
 }
 .appbar__action:hover,
-.appbar__action:focus-visible { opacity: 1; }
+.appbar__action:focus-visible {
+  opacity: 1;
+  background-color: oklch(100% 0 0 / 0.14);
+}
+.appbar__action:active { background-color: oklch(100% 0 0 / 0.22); }
 
 /* ── Content ─────────────────────────────────────────────────────── */
 /* The timeline scrolls here, so the region must not centre its content.
@@ -55,6 +79,13 @@
   min-block-size: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+.route-loading {
+  padding: 32px var(--space-gutter);
+  color: var(--c-ink-soft);
+  animation: fade var(--dur) var(--ease-out);
 }
 
 /* ── Empty state ─────────────────────────────────────────────────── */
@@ -63,8 +94,8 @@
   margin: clamp(28px, 11vh, 88px) auto;
   padding-inline: var(--space-gutter);
   text-align: left;
+  animation: rise var(--dur-slow) var(--ease-out) backwards;
 }
-.empty__action { margin-block-start: 18px; }
 
 /* Colour carries meaning: amber = fuel, clay = maintenance, violet = other. */
 .empty__rule {
@@ -72,12 +103,13 @@
   inline-size: 48px;
   block-size: 6px;
   margin-block-end: 20px;
-  background: var(--c-ink-faint);
+  border-radius: 999px;
+  background-image: linear-gradient(90deg, var(--c-ink-faint), transparent);
 }
-.empty[data-kind='fuel'] .empty__rule { background: var(--c-fuel); }
-.empty[data-kind='service'] .empty__rule { background: var(--c-service); }
-.empty[data-kind='expense'] .empty__rule { background: var(--c-expense); }
-.empty[data-kind='report'] .empty__rule { background: var(--c-brand); }
+.empty[data-kind="fuel"] .empty__rule { background-image: var(--g-fuel); }
+.empty[data-kind="service"] .empty__rule { background-image: var(--g-service); }
+.empty[data-kind="expense"] .empty__rule { background-image: var(--g-expense); }
+.empty[data-kind="report"] .empty__rule { background-image: var(--g-brand); }
 
 .empty__title {
   font-size: var(--t-title);
@@ -88,7 +120,12 @@
   text-wrap: balance;
 }
 
-.empty__body { color: var(--c-ink-soft); text-wrap: pretty; }
+.empty__body {
+  color: var(--c-ink-soft);
+  text-wrap: pretty;
+}
+
+.empty__action { margin-block-start: 18px; }
 
 .empty__hint {
   margin-block-start: 18px;
@@ -104,16 +141,39 @@
 .tabbar {
   position: sticky;
   bottom: 0;
+  z-index: 20;
   display: grid;
   grid-template-columns: repeat(2, 1fr) auto repeat(2, 1fr);
   align-items: center;
   gap: 2px;
   padding: 6px var(--space-gutter) max(6px, env(safe-area-inset-bottom));
-  background: var(--c-surface);
-  border-block-start: 1px solid var(--c-line);
+  /* Translucent so the timeline shows through as it scrolls under the bar. */
+  background: color-mix(in oklab, var(--c-surface) 86%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border-block-start: 1px solid var(--c-line-soft);
 }
 
+/* The indicator is one element that slides, rather than a border that blinks between
+   tabs. TabBar.tsx measures the active link and writes --ind-x / --ind-w. */
+.tabbar__indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  block-size: 3px;
+  inline-size: var(--ind-w, 0);
+  border-radius: 0 0 3px 3px;
+  background-image: var(--g-brand);
+  transform: translate3d(var(--ind-x, 0), 0, 0);
+  transition:
+    transform var(--dur) var(--ease-spring),
+    inline-size var(--dur) var(--ease-spring),
+    opacity var(--dur-fast) linear;
+  pointer-events: none;
+}
+.tabbar__indicator[data-ready="false"] { opacity: 0; }
+
 .tabbar__tab {
+  position: relative;
   min-block-size: var(--tap);
   display: inline-flex;
   align-items: center;
@@ -123,29 +183,48 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--c-ink-faint);
-  border-block-start: 2px solid transparent;
-  transition: color var(--dur-fast) var(--ease-out);
+  border-radius: var(--radius);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
-.tabbar__tab:hover { color: var(--c-ink-soft); }
-.tabbar__tab.is-active { color: var(--c-brand); border-block-start-color: var(--c-brand); }
+.tabbar__tab:hover { color: var(--c-ink-soft); background-color: var(--c-surface-sunk); }
+.tabbar__tab:active { transform: scale(0.94); }
+.tabbar__tab.is-active { color: var(--c-brand); }
 
 .tabbar__fab {
+  position: relative;
   inline-size: 56px;
   block-size: 56px;
   margin-inline: 8px;
   margin-block-start: -22px;
   border: 2px solid var(--c-surface);
   border-radius: 50%;
-  background: var(--c-brand);
-  color: var(--c-brand-ink);
+  background-image: var(--g-brand);
+  color: var(--c-on-brand);
   font-size: 1.75rem;
   line-height: 1;
   font-family: var(--f-num);
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-out);
+  box-shadow: var(--e-brand);
+  transition:
+    transform var(--dur) var(--ease-spring),
+    box-shadow var(--dur) var(--ease-out),
+    opacity var(--dur-fast) linear;
 }
-.tabbar__fab:hover:not(:disabled) { transform: scale(1.06); }
-.tabbar__fab:active:not(:disabled) { transform: scale(0.96); }
-.tabbar__fab:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.route-loading { padding: 32px var(--space-gutter); color: var(--c-ink-soft); }
+.tabbar__fab > span {
+  display: block;
+  transition: transform var(--dur) var(--ease-spring);
+}
+.tabbar__fab:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 10px 26px oklch(38% 0.078 195 / 0.42);
+}
+.tabbar__fab:hover:not(:disabled) > span { transform: rotate(90deg); }
+.tabbar__fab:active:not(:disabled) { transform: scale(0.93); }
+.tabbar__fab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}

@@ -1,64 +1,155 @@
-.settings { display: grid; gap: 12px; padding: 12px var(--space-gutter) 24px; }
-
-.panel {
+.settings {
   display: grid;
-  gap: 12px;
-  padding: 16px;
-  background: var(--c-surface);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px var(--space-gutter) 28px;
+}
+
+/* ── Panel ───────────────────────────────────────────────────────── */
+.panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 13px;
+  padding: 18px;
+  background-image: var(--g-surface);
   border: 1px solid var(--c-line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--e-2);
+  overflow: hidden;
+  animation: rise var(--dur-slow) var(--ease-out) backwards;
+}
+.settings > .panel:nth-child(1) { animation-delay: 20ms; }
+.settings > .panel:nth-child(2) { animation-delay: 60ms; }
+.settings > .panel:nth-child(3) { animation-delay: 100ms; }
+.settings > .panel:nth-child(4) { animation-delay: 140ms; }
+.settings > .panel:nth-child(5) { animation-delay: 180ms; }
+
+/* Accent rail along the top of every card. */
+.panel::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  block-size: 3px;
+  background-image: var(--g-brand);
+  opacity: 0.85;
 }
 .panel--danger { border-color: color-mix(in oklab, var(--c-danger) 40%, var(--c-line)); }
+.panel--danger::before {
+  background-image: linear-gradient(90deg, var(--c-danger), color-mix(in oklab, var(--c-danger) 45%, transparent));
+}
 
-.panel__title { font-size: 1rem; font-weight: 800; letter-spacing: -0.01em; }
-.panel__hint { font-size: 0.85rem; color: var(--c-ink-soft); text-wrap: pretty; }
+.panel__title {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.panel__hint {
+  font-size: 0.85rem;
+  color: var(--c-ink-soft);
+  text-wrap: pretty;
+}
 .panel code {
   font-family: var(--f-num);
   font-size: 0.85em;
-  padding: 1px 5px;
+  padding: 2px 6px;
   background: var(--c-surface-sunk);
-  border-radius: 3px;
+  border: 1px solid var(--c-line-soft);
+  border-radius: 4px;
 }
 
-.vlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+/* ── Vehicle list ────────────────────────────────────────────────── */
+.vlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .vlist__row {
   inline-size: 100%;
   min-block-size: var(--tap);
   display: grid;
-  gap: 2px;
-  padding: 10px 12px;
+  gap: 3px;
+  padding: 11px 13px;
   text-align: left;
   font: inherit;
   color: inherit;
   background: var(--c-surface-sunk);
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease-out);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
 }
-.vlist__row:hover { border-color: var(--c-ink-faint); }
+.vlist__row:hover {
+  border-color: color-mix(in oklab, var(--c-brand) 45%, transparent);
+  transform: translateX(2px);
+  box-shadow: var(--e-1);
+}
+.vlist__row:active { transform: scale(0.99); }
 .vlist__name { font-weight: 700; }
 .vlist__meta { font-size: 0.8rem; color: var(--c-ink-soft); }
 .vlist__empty { font-size: 0.85rem; color: var(--c-ink-soft); padding: 8px 0; }
 
-.prices { display: grid; gap: 12px; }
+.prices { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 
-.stats { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 0.9rem; }
-.stats strong { font-size: 1.05rem; margin-inline-end: 4px; }
+.stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+  font-size: 0.9rem;
+}
+.stats strong { font-size: 1.05rem; margin-inline-end: 4px; color: var(--c-brand); }
 
 /* ── Import report ───────────────────────────────────────────────── */
-.report { display: grid; gap: 12px; }
+.report {
+  display: grid;
+  gap: 13px;
+  animation: rise var(--dur) var(--ease-out);
+}
 .report__file { font-size: 0.85rem; color: var(--c-ink-soft); }
 .report__ok { color: var(--c-ok); font-weight: 600; }
-.report__counts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.9rem; }
-.report__counts strong { font-size: 1.05rem; margin-inline-end: 3px; }
+.report__counts {
+  list-style: none;
+  margin: 0;
+  padding: 12px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 0.9rem;
+  background: var(--c-surface-sunk);
+  border-radius: var(--radius-md);
+}
+.report__counts strong { font-size: 1.1rem; margin-inline-end: 4px; color: var(--c-brand); }
 .report__opts { display: grid; gap: 4px; border: 0; padding: 0; margin: 0; }
 
-.issues { padding: 10px 12px; border-radius: var(--radius); border-inline-start: 3px solid; font-size: 0.85rem; }
-.issues ul { margin: 6px 0 0; padding-inline-start: 18px; display: grid; gap: 4px; }
+.issues {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border-inline-start: 3px solid;
+  font-size: 0.85rem;
+  animation: rise var(--dur) var(--ease-out);
+}
+.issues ul { margin: 7px 0 0; padding-inline-start: 18px; display: grid; gap: 5px; }
 .issues code { font-size: 0.85em; }
 .issues__title { font-weight: 700; }
-.issues__more { margin-block-start: 6px; color: var(--c-ink-soft); }
-.issues--error { border-color: var(--c-danger); background: color-mix(in oklab, var(--c-danger) 9%, transparent); }
+.issues__more { margin-block-start: 7px; color: var(--c-ink-soft); }
+
+.issues--error {
+  border-color: var(--c-danger);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--c-danger) 12%, transparent),
+    color-mix(in oklab, var(--c-danger) 4%, transparent)
+  );
+}
 .issues--error .issues__title { color: var(--c-danger); }
-.issues--warn { border-color: var(--c-fuel); background: color-mix(in oklab, var(--c-fuel) 12%, transparent); }
+
+.issues--warn {
+  border-color: var(--c-fuel);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--c-fuel) 16%, transparent),
+    color-mix(in oklab, var(--c-fuel) 5%, transparent)
+  );
+}

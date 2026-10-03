@@ -5,35 +5,79 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: oklch(20% 0.02 260 / 0.45);
-  backdrop-filter: blur(2px);
+  background: oklch(20% 0.02 260 / 0.5);
+  backdrop-filter: blur(6px) saturate(0.9);
+  animation: fade var(--dur) var(--ease-out);
 }
 
 .sheet {
+  position: relative;
   inline-size: min(560px, 100%);
   max-block-size: 92dvh;
   display: flex;
   flex-direction: column;
-  background: var(--c-bg);
-  border-start-start-radius: 14px;
-  border-start-end-radius: 14px;
-  box-shadow: 0 -8px 40px oklch(20% 0.02 260 / 0.25);
-  animation: sheet-in 180ms var(--ease-out);
-}
-@keyframes sheet-in {
-  from { transform: translateY(16px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  background-color: var(--c-bg);
+  background-image: var(--g-page);
+  border-start-start-radius: var(--radius-lg);
+  border-start-end-radius: var(--radius-lg);
+  box-shadow: var(--e-4);
+  overflow: hidden;
+  animation: sheet-in var(--dur-slow) var(--ease-spring);
 }
 
+/* A lit top edge so the panel reads as rising out of the page, not pasted onto it. */
+.sheet::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  block-size: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--c-brand) 40%, transparent),
+    transparent
+  );
+  z-index: 1;
+}
+
+@keyframes sheet-in {
+  from { transform: translateY(26px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* ── Head ────────────────────────────────────────────────────────── */
 .sheet__head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px var(--space-gutter);
-  border-block-end: 1px solid var(--c-line);
+  padding: 16px var(--space-gutter) 14px;
+  background-image: var(--g-sheen);
+  border-block-end: 1px solid var(--c-line-soft);
 }
-.sheet__title { font-size: 1rem; font-weight: 800; letter-spacing: -0.01em; }
+
+/* The grab handle. Purely a visual affordance — the sheet is not drag-dismissible yet. */
+.sheet__head::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  translate: -50% 0;
+  inline-size: 36px;
+  block-size: 4px;
+  border-radius: 999px;
+  background: var(--c-line);
+}
+
+.sheet__title {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-block-start: 4px;
+}
+
 .sheet__close {
   min-inline-size: var(--tap);
   min-block-size: var(--tap);
@@ -41,12 +85,28 @@
   color: var(--c-ink-soft);
   background: none;
   border: 0;
+  border-radius: 50%;
   cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--dur) var(--ease-spring);
 }
-.sheet__close:hover { color: var(--c-ink); }
+.sheet__close:hover {
+  color: var(--c-ink);
+  background: var(--c-surface-sunk);
+  transform: rotate(90deg);
+}
 
-.kindtabs { display: grid; grid-auto-flow: column; gap: 2px; padding: 8px var(--space-gutter) 0; }
+/* ── Kind tabs ───────────────────────────────────────────────────── */
+.kindtabs {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 2px;
+  padding: 10px var(--space-gutter) 0;
+}
 .kindtabs__tab {
+  position: relative;
   min-block-size: var(--tap);
   font: inherit;
   font-size: 0.85rem;
@@ -54,37 +114,67 @@
   color: var(--c-ink-soft);
   background: none;
   border: 0;
-  border-block-end: 2px solid transparent;
+  border-radius: var(--radius) var(--radius) 0 0;
   cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
 }
-.kindtabs__tab:hover { color: var(--c-ink); }
+.kindtabs__tab:hover { color: var(--c-ink); background: var(--c-surface-sunk); }
 .kindtabs__tab.is-active { color: var(--c-ink); }
-.kindtabs__tab[data-kind='fuel'].is-active { border-block-end-color: var(--c-fuel); }
-.kindtabs__tab[data-kind='service'].is-active { border-block-end-color: var(--c-service); }
-.kindtabs__tab[data-kind='expense'].is-active { border-block-end-color: var(--c-expense); }
 
+/* Underline scales in from the centre, so switching kind feels continuous. */
+.kindtabs__tab::after {
+  content: "";
+  position: absolute;
+  inset-inline: 6px;
+  bottom: 0;
+  block-size: 3px;
+  border-radius: 3px 3px 0 0;
+  transform: scaleX(0);
+  transition: transform var(--dur) var(--ease-spring);
+}
+.kindtabs__tab.is-active::after { transform: scaleX(1); }
+.kindtabs__tab[data-kind="fuel"]::after { background-image: var(--g-fuel); }
+.kindtabs__tab[data-kind="service"]::after { background-image: var(--g-service); }
+.kindtabs__tab[data-kind="expense"]::after { background-image: var(--g-expense); }
+
+/* ── Body ────────────────────────────────────────────────────────── */
 .sheet__body {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: grid;
-  gap: 16px;
-  padding: 16px var(--space-gutter);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px var(--space-gutter) 22px;
 }
+.sheet__body > * { animation: rise var(--dur) var(--ease-out) backwards; }
+.sheet__body > *:nth-child(1) { animation-delay: 20ms; }
+.sheet__body > *:nth-child(2) { animation-delay: 50ms; }
+.sheet__body > *:nth-child(3) { animation-delay: 80ms; }
+.sheet__body > *:nth-child(4) { animation-delay: 110ms; }
 
 .sheet__error {
-  padding: 10px 12px;
+  padding: 11px 13px;
   color: var(--c-danger);
   font-weight: 600;
-  background: color-mix(in oklab, var(--c-danger) 10%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--c-danger) 14%, transparent),
+    color-mix(in oklab, var(--c-danger) 6%, transparent)
+  );
   border-inline-start: 3px solid var(--c-danger);
   border-radius: var(--radius);
+  animation: rise var(--dur) var(--ease-spring);
 }
 
+/* ── Foot ────────────────────────────────────────────────────────── */
 .sheet__foot {
   display: flex;
   gap: 10px;
-  padding: 12px var(--space-gutter) max(12px, env(safe-area-inset-bottom));
-  border-block-start: 1px solid var(--c-line);
-  background: var(--c-surface);
+  padding: 14px var(--space-gutter) max(14px, env(safe-area-inset-bottom));
+  border-block-start: 1px solid var(--c-line-soft);
+  background: color-mix(in oklab, var(--c-surface) 82%, transparent);
+  backdrop-filter: blur(12px);
 }

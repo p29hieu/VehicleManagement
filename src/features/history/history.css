@@ -1,56 +1,121 @@
-.history { padding-block: 4px 12px; }
-.history__loading { padding: 32px var(--space-gutter); color: var(--c-ink-soft); }
+.history { padding-block: 4px 16px; }
 
+.history__loading {
+  padding: 32px var(--space-gutter);
+  color: var(--c-ink-soft);
+}
+
+/* ── Month heading ───────────────────────────────────────────────── */
 .history__heading {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
-  padding: 10px var(--space-gutter) 6px;
+  padding: 12px var(--space-gutter) 8px;
   font-size: var(--t-label);
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--c-ink-soft);
-  background: linear-gradient(var(--c-bg) 70%, transparent);
+  /* Fades the scrolling timeline out underneath the label rather than covering it
+     with an opaque bar. */
+  background: linear-gradient(
+    var(--c-bg) 0%,
+    color-mix(in oklab, var(--c-bg) 88%, transparent) 72%,
+    transparent 100%
+  );
+  backdrop-filter: blur(6px);
 }
 
-.history__list { list-style: none; margin: 0; padding: 0; }
+/* A hairline that fades out to the right — stops the heading reading as a hard divider. */
+.history__heading::after {
+  content: "";
+  flex: 1;
+  block-size: 1px;
+  background: linear-gradient(90deg, var(--c-line) 0%, transparent 100%);
+}
 
+.history__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Row ─────────────────────────────────────────────────────────── */
 .row {
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 12px;
-  width: 100%;
+  gap: 14px;
+  inline-size: 100%;
   min-block-size: var(--tap);
-  padding: 12px var(--space-gutter);
+  padding: 13px var(--space-gutter);
   border: 0;
-  border-block-end: 1px solid var(--c-line);
   background: transparent;
   text-align: left;
   font: inherit;
   color: inherit;
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out);
+  border-radius: var(--radius-md);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
-.row:hover { background: var(--c-surface-sunk); }
-.row:active { background: var(--c-line); }
 
-/* The dot colour is the record type. Scanning the timeline should not require reading. */
+/* Hairline between rows, inset so it stops short of the dot rail. */
+.row::after {
+  content: "";
+  position: absolute;
+  inset-inline: calc(var(--space-gutter) + 26px) var(--space-gutter);
+  bottom: 0;
+  block-size: 1px;
+  background: var(--c-line-soft);
+}
+.history__list li:last-child .row::after { display: none; }
+
+.row:hover { background-color: var(--c-surface-sunk); }
+.row:active { transform: scale(0.985); }
+
+/* ── Dot ─────────────────────────────────────────────────────────── */
+/* The colour is the record type. Scanning the timeline should not require reading. */
 .row__dot {
+  position: relative;
   inline-size: 12px;
   block-size: 12px;
-  margin-block-start: 5px;
+  margin-block-start: 6px;
   border-radius: 50%;
-  background: var(--c-ink-faint);
+  background-image: linear-gradient(135deg, var(--c-ink-faint), var(--c-ink-soft));
+  transition: transform var(--dur) var(--ease-spring);
 }
-.row[data-kind='fuel'] .row__dot { background: var(--c-fuel); }
-.row[data-kind='service'] .row__dot { background: var(--c-service); }
-.row[data-kind='expense'] .row__dot { background: var(--c-expense); }
+.row[data-kind="fuel"] .row__dot { background-image: var(--g-fuel); }
+.row[data-kind="service"] .row__dot { background-image: var(--g-service); }
+.row[data-kind="expense"] .row__dot { background-image: var(--g-expense); }
 
+/* Soft halo in the same hue, so the dot sits in the surface instead of on it. */
+.row__dot::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.18;
+  transition: opacity var(--dur) var(--ease-out);
+}
+.row:hover .row__dot { transform: scale(1.18); }
+.row:hover .row__dot::before { opacity: 0.3; }
+
+/* ── Text ────────────────────────────────────────────────────────── */
 /* A flex item's default min-width is `auto`, so the ellipsis on .row__meta cannot take
    effect — the row grows past the viewport instead, which clipped the date and amount.
    Every container in the chain needs min-inline-size: 0 before the text may shrink. */
-.row__main { min-inline-size: 0; display: grid; gap: 2px; }
+.row__main {
+  min-inline-size: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3px;
+}
 .row__top,
 .row__bottom {
   display: flex;
@@ -67,7 +132,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.row__date { font-size: var(--t-label); color: var(--c-ink-faint); flex: none; }
+
+.row__date {
+  font-size: var(--t-label);
+  color: var(--c-ink-faint);
+  flex: none;
+}
 
 .row__meta {
   font-size: 0.8rem;
@@ -77,4 +147,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.row__amount { font-weight: 600; flex: none; }
+
+.row__amount {
+  font-weight: 700;
+  flex: none;
+  letter-spacing: -0.015em;
+}
