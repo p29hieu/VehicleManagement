@@ -234,3 +234,89 @@
   background: var(--c-surface-sunk);
   border: 1px solid var(--c-line-soft);
 }
+
+/* ── Fuel summary ────────────────────────────────────────────────── */
+.fsum {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1px;
+  margin: 12px var(--space-gutter) 4px;
+  background: var(--c-line-soft);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  animation: rise var(--dur-slow) var(--ease-out) backwards;
+}
+
+.fsum__cell {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  padding: 13px 14px;
+  background-image: var(--g-surface);
+  min-inline-size: 0;
+}
+
+.fsum__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.fsum__value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+/* The tilde is the whole difference between a measurement and an estimate, so it is
+   rendered rather than buried in a tooltip. */
+.fsum__approx { color: var(--c-ink-faint); margin-inline-end: 1px; }
+
+.fsum__unit { font-size: 0.78rem; color: var(--c-ink-soft); }
+
+.fsum__basis {
+  margin-block-start: 3px;
+  font-size: 0.7rem;
+  color: var(--c-ink-faint);
+  text-wrap: pretty;
+}
+
+.fsum__none { font-size: 0.8rem; color: var(--c-ink-soft); text-wrap: pretty; }
+
+.fsum__cell[data-overdue] .fsum__value { color: var(--c-danger); }
+
+/* ── Per-row consumption ─────────────────────────────────────────── */
+.row__cons {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--c-on-fuel);
+  background-image: var(--g-fuel);
+}
+.row__cons[data-exact="false"] { opacity: 0.82; }
+
+.fsum__warn {
+  margin-block-start: 6px;
+  padding: 7px 9px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--c-ink);
+  background: color-mix(in oklab, var(--c-fuel) 16%, transparent);
+  border-inline-start: 2px solid var(--c-fuel);
+  border-radius: 4px;
+  text-wrap: pretty;
+}
+
+/* A figure outside the vehicle class's range is shown, but visibly distrusted. */
+.row__cons[data-suspect] {
+  background-image: none;
+  background: color-mix(in oklab, var(--c-danger) 16%, transparent);
+  color: var(--c-danger);
+  border: 1px dashed color-mix(in oklab, var(--c-danger) 55%, transparent);
+}

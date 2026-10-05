@@ -47,6 +47,7 @@ export default function App() {
               hasVehicle ? (
                 <HistoryScreen
                   items={timeline}
+                  vehicle={active}
                   onOpen={(it) => setSheet({ open: true, target: { kind: it.kind, id: it.id } })}
                 />
               ) : (

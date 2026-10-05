@@ -10,6 +10,7 @@ import type {
 } from '../domain/types'
 import { FUEL_TYPE_SHORT, fuelVerb, quantityUnit } from '../domain/labels'
 import { dec2, money } from '../lib/format'
+import { consumptionByEntry } from '../domain/consumption'
 
 type New<T> = Omit<T, 'id' | 'updated_at'> & { id?: string }
 
@@ -114,6 +115,9 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
     db.vehicles.get(vehicleId),
   ])
 
+  // One pass over the whole fuel log; each row then reads its own figure out of the map.
+  const consumption = vehicle ? consumptionByEntry(fuel, vehicle) : new Map()
+
   const items: TimelineItem[] = [
     ...fuel.map<TimelineItem>((e) => {
       // The entry's own grade wins; null means it was filled with the vehicle's default.
@@ -129,6 +133,10 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
         subtitle: fuelSubtitle(e, grade),
         delta_km: null,
         badge: FUEL_TYPE_SHORT[grade],
+        consumption: (() => {
+          const c = consumption.get(e.id)
+          return c ? { l100: c.l100, exact: c.exact, outOfBand: c.outOfBand } : null
+        })(),
       }
     }),
     ...services.map<TimelineItem>((s) => ({
@@ -142,6 +150,7 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
       subtitle: serviceSubtitle(s),
       delta_km: null,
       badge: s.items.length > 1 ? `${s.items.length} hạng mục` : null,
+      consumption: null,
     })),
     ...expenses.map<TimelineItem>((x) => ({
       kind: 'expense',
@@ -154,6 +163,7 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
       subtitle: x.note,
       delta_km: null,
       badge: null,
+      consumption: null,
     })),
   ]
 

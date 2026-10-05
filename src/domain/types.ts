@@ -122,4 +122,8 @@ export interface TimelineItem {
   delta_km: number | null
   /** Short tag shown beside the title: the fuel grade, or the service item count. */
   badge: string | null
+  /** Consumption for this fill, in litres (or kWh) per 100 km. Null on non-fuel rows and
+   *  whenever the data cannot support a figure. `exact` separates a measurement between
+   *  two full tanks from the aggregate estimate. */
+  consumption: { l100: number; exact: boolean; outOfBand: boolean } | null
 }

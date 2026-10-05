@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
-import type { RecordKind, TimelineItem } from '../../domain/types'
-import { dateShort, km, money, monthHeading, monthKey } from '../../lib/format'
+import type { RecordKind, TimelineItem, Vehicle } from '../../domain/types'
+import { dateShort, dec2, km, money, monthHeading, monthKey } from '../../lib/format'
 import { EmptyState } from '../../components/EmptyState'
+import { FuelSummary } from './FuelSummary'
 import './history.css'
 
 interface Props {
   items: TimelineItem[] | undefined
+  vehicle: Vehicle
   onOpen: (item: TimelineItem) => void
 }
 
@@ -48,7 +50,7 @@ const EMPTY: Record<Filter, { title: string; body: string }> = {
   expense: { title: 'Chưa có chi phí khác', body: 'Gửi xe, cầu đường, bảo hiểm, rửa xe…' },
 }
 
-export function HistoryScreen({ items, onOpen }: Props) {
+export function HistoryScreen({ items, vehicle, onOpen }: Props) {
   const [filter, setFilter] = useState<Filter>('all')
 
   const shown = useMemo(
@@ -92,11 +94,14 @@ export function HistoryScreen({ items, onOpen }: Props) {
       </div>
     ) : null
 
+  const summary = filter === 'all' || filter === 'fuel' ? <FuelSummary vehicle={vehicle} /> : null
+
   if (!shown.length) {
     const e = EMPTY[filter]
     return (
       <div className="history">
         {bar}
+        {summary}
         <EmptyState
           kind={filter === 'all' ? 'fuel' : filter}
           title={e.title}
@@ -112,6 +117,7 @@ export function HistoryScreen({ items, onOpen }: Props) {
   return (
     <div className="history">
       {bar}
+      {summary}
       {blocks.map((b) => (
         <section className="history__month" key={b.key} aria-labelledby={`m-${b.key}`}>
           <h2 className="history__heading" id={`m-${b.key}`}>
@@ -156,6 +162,23 @@ function Row({ item, onOpen }: { item: TimelineItem; onOpen: (i: TimelineItem) =
         </span>
         <span className="row__bottom">
           <span className="row__meta num">{meta.join(' · ')}</span>
+          {item.consumption ? (
+            <span
+              className="row__cons num"
+              data-exact={String(item.consumption.exact)}
+              data-suspect={item.consumption.outOfBand ? '' : undefined}
+              title={
+                item.consumption.outOfBand
+                  ? 'Ngoài dải hợp lý của loại xe này — nhiều khả năng thiếu số lít hoặc sai số km'
+                  : item.consumption.exact
+                    ? 'Đo giữa hai lần đổ đầy bình'
+                    : 'Ước tính — chưa có lần đổ nào được đánh dấu đổ đầy bình'
+              }
+            >
+              {item.consumption.exact ? '' : '~'}
+              {dec2(item.consumption.l100)}
+            </span>
+          ) : null}
           <span className="row__amount num">{money(item.total_amount)}</span>
         </span>
       </span>
