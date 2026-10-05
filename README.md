@@ -3,8 +3,8 @@
 Ứng dụng web PWA tiếng Việt quản lý chi phí & bảo dưỡng phương tiện (ô tô / xe máy, xăng hoặc điện).
 Chạy hoàn toàn phía trình duyệt, host trên GitHub Pages, dữ liệu thuộc về người dùng.
 
-> **Trạng thái: P1 xong.** Lõi dữ liệu local đã chạy: nhập file, CRUD đầy đủ,
-> lịch sử gom nhóm theo tháng. Báo cáo và dự báo bắt đầu từ P3.
+> **Trạng thái: P1 xong + engine tính tiêu thụ.** Nhập file, CRUD đầy đủ, lịch sử
+> gom nhóm theo tháng có bộ lọc, mức tiêu thụ từng lần đổ và dự báo lần đổ kế tiếp.
 
 | | |
 |---|---|
@@ -68,6 +68,7 @@ npm install
 npm run dev        # http://localhost:5173/VehicleManagement/
 npm run build      # build + sinh dist/404.html
 npm run typecheck
+npm test           # Vitest — engine tính tiêu thụ
 ```
 
 Push lên `main` là GitHub Actions tự build và deploy.
@@ -75,7 +76,8 @@ Push lên `main` là GitHub Actions tự build và deploy.
 ## Tiến độ
 
 - [x] **P0** Dựng khung + deploy GitHub Pages
-- [x] **P1** Lõi dữ liệu local (Dexie) — nhập file, CRUD, lịch sử theo tháng
+- [x] **P1** Lõi dữ liệu local (Dexie) — nhập file, CRUD, lịch sử theo tháng + bộ lọc
+- [x] **P3 (phần engine)** Mức tiêu thụ L/100km + dự báo lần đổ kế tiếp — 17 test
 - [ ] **P2** Design system + nhập liệu nhanh
 - [ ] **P3** Engine tính toán
 - [ ] **P4** Báo cáo · **P5** PWA offline · **P6** Nhập/Xuất Excel

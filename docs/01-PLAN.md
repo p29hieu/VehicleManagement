@@ -161,7 +161,11 @@ Có một khoảng tranh chấp nhỏ không thể tránh. **Phải tự viết 
 - `String(v).normalize('NFC')` ở mọi biên nhập liệu.
 - ✅ Xong khi: **bấm đồng hồ, thêm một lần đổ xăng dưới 10 giây trên máy thật.**
 
-### P3 — Engine tính toán ⭐ *rủi ro cao nhất*
+### P3 — Engine tính toán ⭐ *rủi ro cao nhất* — **phần lõi đã xong 05/10/2026**
+
+> Đã có: `src/domain/consumption.ts` + 17 test (`npm test`). Mức tiêu thụ hiện trên từng
+> bản ghi, kèm thẻ tóm tắt mức trung bình và dự báo lần đổ kế tiếp.
+> Còn lại cho P4: biểu đồ theo thời gian và chi phí theo tháng.
 - Thuật toán đổ-đầy-tới-đổ-đầy, đúng off-by-one (`03-DATA-MODEL.md` §3.1).
 - Trung bình **theo trọng số quãng đường**.
 - Đủ trường hợp biên: `missed_fill`, ODO rỗng/`0`, `dist <= 0`, bản ghi đầu là đổ không đầy.
