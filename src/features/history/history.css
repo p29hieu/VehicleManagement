@@ -153,3 +153,84 @@
   flex: none;
   letter-spacing: -0.015em;
 }
+
+/* ── Filter tabs ─────────────────────────────────────────────────── */
+.hfilter {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: 6px;
+  padding: 10px var(--space-gutter);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: color-mix(in oklab, var(--c-bg) 90%, transparent);
+  backdrop-filter: blur(10px);
+  border-block-end: 1px solid var(--c-line-soft);
+}
+.hfilter::-webkit-scrollbar { display: none; }
+
+.hfilter__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-block-size: 34px;
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--c-ink-soft);
+  background-image: var(--g-surface);
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.hfilter__tab:hover { border-color: var(--c-ink-faint); color: var(--c-ink); }
+.hfilter__tab:active { transform: scale(0.95); }
+
+.hfilter__count {
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--c-surface-sunk);
+  color: var(--c-ink-soft);
+}
+
+/* Active colour matches the record type, same language as the timeline dots. */
+.hfilter__tab.is-active { color: var(--c-on-brand); border-color: transparent; }
+.hfilter__tab.is-active .hfilter__count { background: oklch(100% 0 0 / 0.22); color: inherit; }
+.hfilter__tab[data-kind="all"].is-active { background-image: var(--g-brand); }
+.hfilter__tab[data-kind="service"].is-active { background-image: var(--g-service); }
+.hfilter__tab[data-kind="expense"].is-active { background-image: var(--g-expense); }
+.hfilter__tab[data-kind="fuel"].is-active {
+  background-image: var(--g-fuel);
+  color: var(--c-on-fuel);
+}
+.hfilter__tab[data-kind="fuel"].is-active .hfilter__count {
+  background: oklch(0% 0 0 / 0.14);
+}
+
+/* ── Title + badge ───────────────────────────────────────────────── */
+.row__titlewrap {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-inline-size: 0;
+}
+
+.row__badge {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--c-ink-soft);
+  background: var(--c-surface-sunk);
+  border: 1px solid var(--c-line-soft);
+}

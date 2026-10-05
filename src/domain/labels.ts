@@ -16,6 +16,15 @@ export const FUEL_TYPE_LABEL: Record<FuelType, string> = {
   hybrid: 'Hybrid xăng-điện',
 }
 
+/** Compact form for the timeline badge, where the full name would not fit. */
+export const FUEL_TYPE_SHORT: Record<FuelType, string> = {
+  ron95: 'RON 95',
+  e5ron92: 'E5',
+  diesel: 'Diesel',
+  electric: 'Điện',
+  hybrid: 'Hybrid',
+}
+
 export const isElectric = (f: FuelType) => f === 'electric'
 
 /** "Đổ xăng" vs "Sạc điện" — the wording follows the vehicle, per docs/02-UIUX.md §8.

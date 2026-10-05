@@ -2,13 +2,14 @@ import { db } from './index'
 import { newId, nfc, now } from '../lib/id'
 import type {
   ExpenseRecord,
+  FuelType,
   FuelEntry,
   ServiceRecord,
   TimelineItem,
   Vehicle,
 } from '../domain/types'
-import { fuelVerb, quantityUnit } from '../domain/labels'
-import { dec2 } from '../lib/format'
+import { FUEL_TYPE_SHORT, fuelVerb, quantityUnit } from '../domain/labels'
+import { dec2, money } from '../lib/format'
 
 type New<T> = Omit<T, 'id' | 'updated_at'> & { id?: string }
 
@@ -53,7 +54,10 @@ export async function saveFuelEntry(e: New<FuelEntry>): Promise<string> {
   return row.id
 }
 export async function saveService(s: New<ServiceRecord>): Promise<string> {
-  const row = stamp({ ...s, items: s.items.map(nfc) }) as ServiceRecord
+  const row = stamp({
+    ...s,
+    items: s.items.map((i) => ({ name: nfc(i.name), amount: i.amount })),
+  }) as ServiceRecord
   await db.services.put(row)
   return row.id
 }
@@ -72,13 +76,27 @@ export const getService = (id: string) => db.services.get(id)
 export const getExpense = (id: string) => db.expenses.get(id)
 
 // ── timeline ────────────────────────────────────────────────────────────────
-function fuelSubtitle(e: FuelEntry, v: Vehicle | undefined): string | null {
+function fuelSubtitle(e: FuelEntry, grade: FuelType): string | null {
   const bits: string[] = []
-  if (e.quantity != null) bits.push(`${dec2(e.quantity)} ${quantityUnit(v?.fuel_type ?? 'ron95')}`)
+  // Quantity and unit price together are what let a user sanity-check a past fill.
+  if (e.quantity != null) {
+    const q = `${dec2(e.quantity)} ${quantityUnit(grade)}`
+    bits.push(e.unit_price != null ? `${q} × ${money(e.unit_price)}` : q)
+  } else if (e.unit_price != null) {
+    bits.push(money(e.unit_price))
+  }
   bits.push(e.is_full_tank ? 'đổ đầy' : 'đổ một phần')
   if (e.missed_fill) bits.push('có bỏ sót lần đổ')
   if (e.station) bits.push(e.station)
   return bits.join(' · ') || null
+}
+
+function serviceSubtitle(s: ServiceRecord): string | null {
+  const rest = s.items.slice(1)
+  if (!rest.length) return s.workshop
+  // Name the other items rather than just counting them — the count is already the badge.
+  const named = rest.map((i) => (i.amount != null ? `${i.name} ${money(i.amount)}` : i.name))
+  return [named.join(' · '), s.workshop].filter(Boolean).join(' · ')
 }
 
 /**
@@ -97,17 +115,22 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
   ])
 
   const items: TimelineItem[] = [
-    ...fuel.map<TimelineItem>((e) => ({
-      kind: 'fuel',
-      id: e.id,
-      vehicle_id: e.vehicle_id,
-      date: e.date,
-      odometer_km: e.odometer_km,
-      total_amount: e.total_amount,
-      title: fuelVerb(vehicle?.fuel_type ?? 'ron95'),
-      subtitle: fuelSubtitle(e, vehicle),
-      delta_km: null,
-    })),
+    ...fuel.map<TimelineItem>((e) => {
+      // The entry's own grade wins; null means it was filled with the vehicle's default.
+      const grade = e.fuel_type ?? vehicle?.fuel_type ?? 'ron95'
+      return {
+        kind: 'fuel',
+        id: e.id,
+        vehicle_id: e.vehicle_id,
+        date: e.date,
+        odometer_km: e.odometer_km,
+        total_amount: e.total_amount,
+        title: fuelVerb(grade),
+        subtitle: fuelSubtitle(e, grade),
+        delta_km: null,
+        badge: FUEL_TYPE_SHORT[grade],
+      }
+    }),
     ...services.map<TimelineItem>((s) => ({
       kind: 'service',
       id: s.id,
@@ -115,9 +138,10 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
       date: s.date,
       odometer_km: s.odometer_km,
       total_amount: s.total_amount,
-      title: s.items[0] ?? 'Bảo dưỡng',
-      subtitle: s.items.length > 1 ? `+${s.items.length - 1} hạng mục khác` : null,
+      title: s.items[0]?.name ?? 'Bảo dưỡng',
+      subtitle: serviceSubtitle(s),
       delta_km: null,
+      badge: s.items.length > 1 ? `${s.items.length} hạng mục` : null,
     })),
     ...expenses.map<TimelineItem>((x) => ({
       kind: 'expense',
@@ -127,8 +151,9 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
       odometer_km: x.odometer_km,
       total_amount: x.total_amount,
       title: x.category,
-      subtitle: null,
+      subtitle: x.note,
       delta_km: null,
+      badge: null,
     })),
   ]
 

@@ -126,9 +126,15 @@ export async function runImport(raw: unknown, opts: ImportOptions): Promise<Impo
     [db.vehicles, db.fuelEntries, db.services, db.expenses, db.maintenanceRules, db.reminders],
     async () => {
       await db.vehicles.bulkPut(file.vehicles.map((v) => ({ ...v, name: nfc(v.name), updated_at: ts })))
-      await db.fuelEntries.bulkPut(file.fuel_entries.map((e) => ({ ...e, updated_at: ts })))
+      await db.fuelEntries.bulkPut(
+        file.fuel_entries.map((e) => ({ ...e, fuel_type: e.fuel_type ?? null, updated_at: ts })),
+      )
       await db.services.bulkPut(
-        file.services.map((s) => ({ ...s, items: s.items.map(nfc), updated_at: ts })),
+        file.services.map((s) => ({
+          ...s,
+          items: s.items.map((i) => ({ name: nfc(i.name), amount: i.amount })),
+          updated_at: ts,
+        })),
       )
       await db.expenses.bulkPut(file.expenses.map((x) => ({ ...x, updated_at: ts })))
       if (opts.includeSuggestions) {

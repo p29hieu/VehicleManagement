@@ -24,13 +24,16 @@
   /* Text placed on a --g-* gradient. Those gradients stay mid-to-dark in both
      themes, so this stays light in both — unlike --c-brand-ink, which flips. */
   --c-on-brand: oklch(97% 0.008 195);
+  /* Amber is far too light to carry near-white text, so anything sitting on
+     --g-fuel uses dark ink instead. Same value in both themes. */
+  --c-on-fuel: oklch(24% 0.06 55);
 
   /* ── Semantic: tied to the kind of cost, never decorative ──────── */
   --c-fuel: oklch(72% 0.17 62);
   --c-fuel-deep: oklch(62% 0.16 50);
   --c-service: oklch(53% 0.11 35); /* AA on --c-on-brand: 4.80 dark / 5.09 light (measured) */
   --c-service-deep: oklch(46% 0.1 28);
-  --c-expense: oklch(58% 0.09 285);
+  --c-expense: oklch(52% 0.09 285); /* AA on --c-on-brand: 4.89 dark / 5.19 light (measured) */
   --c-expense-deep: oklch(48% 0.1 288);
   --c-danger: oklch(53% 0.2 27);
   --c-ok: oklch(58% 0.14 152);
@@ -101,6 +104,7 @@
     --c-brand-deep: oklch(58% 0.09 198);
     --c-brand-ink: oklch(16% 0.02 195);
     --c-on-brand: oklch(95% 0.012 195);
+    --c-on-fuel: oklch(24% 0.06 55);
 
     --g-brand: linear-gradient(135deg, oklch(34% 0.06 198) 0%, oklch(26% 0.05 200) 54%, oklch(21% 0.04 205) 100%);
     --g-page:
@@ -131,6 +135,7 @@
   --c-brand-deep: oklch(58% 0.09 198);
   --c-brand-ink: oklch(16% 0.02 195);
   --c-on-brand: oklch(95% 0.012 195);
+  --c-on-fuel: oklch(24% 0.06 55);
   --g-brand: linear-gradient(135deg, oklch(34% 0.06 198) 0%, oklch(26% 0.05 200) 54%, oklch(21% 0.04 205) 100%);
   --g-page:
     radial-gradient(120% 70% at 85% -5%, oklch(32% 0.05 62 / 0.26) 0%, transparent 62%),

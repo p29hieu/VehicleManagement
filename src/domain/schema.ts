@@ -29,6 +29,8 @@ export const fuelEntrySchema = z.object({
   vehicle_id: z.string().min(1),
   date: isoDate,
   odometer_km: z.number().int().min(0).nullable(),
+  // Optional so files written before per-entry fuel types still import cleanly.
+  fuel_type: z.enum(FUEL_TYPES).nullable().optional(),
   quantity: nullableNum,
   unit_price: nullableNum,
   total_amount: nullableNum,
@@ -44,7 +46,16 @@ export const serviceSchema = z.object({
   vehicle_id: z.string().min(1),
   date: isoDate,
   odometer_km: z.number().int().min(0).nullable(),
-  items: z.array(z.string().min(1)).min(1),
+  // Accepts the legacy string[] shape and the priced form; normalised below.
+  items: z
+    .array(
+      z.union([
+        z.string().min(1),
+        z.object({ name: z.string().min(1), amount: z.number().finite().nullable().default(null) }),
+      ]),
+    )
+    .min(1)
+    .transform((arr) => arr.map((i) => (typeof i === 'string' ? { name: i, amount: null } : i))),
   total_amount: nullableNum,
   workshop: nullableStr,
   note: nullableStr,

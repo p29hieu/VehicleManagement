@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import type { TimelineItem } from '../../domain/types'
+import { useMemo, useState } from 'react'
+import type { RecordKind, TimelineItem } from '../../domain/types'
 import { dateShort, km, money, monthHeading, monthKey } from '../../lib/format'
 import { EmptyState } from '../../components/EmptyState'
 import './history.css'
@@ -8,6 +8,15 @@ interface Props {
   items: TimelineItem[] | undefined
   onOpen: (item: TimelineItem) => void
 }
+
+type Filter = 'all' | RecordKind
+
+const FILTERS: Array<{ id: Filter; label: string }> = [
+  { id: 'all', label: 'Tất cả' },
+  { id: 'fuel', label: 'Đổ xăng' },
+  { id: 'service', label: 'Bảo dưỡng' },
+  { id: 'expense', label: 'Chi phí' },
+]
 
 interface MonthBlock {
   key: string
@@ -26,25 +35,83 @@ function groupByMonth(items: TimelineItem[]): MonthBlock[] {
   return blocks
 }
 
+const EMPTY: Record<Filter, { title: string; body: string }> = {
+  all: {
+    title: 'Chưa có bản ghi nào',
+    body: 'Bấm nút + để thêm lần đổ xăng, bảo dưỡng hoặc chi phí đầu tiên.',
+  },
+  fuel: { title: 'Chưa có lần đổ nào', body: 'Các lần đổ xăng hoặc sạc điện sẽ hiện ở đây.' },
+  service: {
+    title: 'Chưa có bản ghi bảo dưỡng',
+    body: 'Thay dầu, thay lốp, đăng kiểm… ghi lại để theo dõi chi phí và lên lịch nhắc.',
+  },
+  expense: { title: 'Chưa có chi phí khác', body: 'Gửi xe, cầu đường, bảo hiểm, rửa xe…' },
+}
+
 export function HistoryScreen({ items, onOpen }: Props) {
-  const blocks = useMemo(() => groupByMonth(items ?? []), [items])
-  /** Position of each row in the flat timeline, so the entrance cascade is continuous
+  const [filter, setFilter] = useState<Filter>('all')
+
+  const shown = useMemo(
+    () => (items ?? []).filter((it) => filter === 'all' || it.kind === filter),
+    [items, filter],
+  )
+  const blocks = useMemo(() => groupByMonth(shown), [shown])
+  /** Index across the whole filtered list, so the entrance cascade is continuous
    *  across month headings rather than restarting inside every group. */
-  const order = useMemo(() => new Map((items ?? []).map((it, i) => [it, i])), [items])
+  const order = useMemo(() => new Map(shown.map((it, i) => [it, i])), [shown])
+
+  // Counts come from the unfiltered list so the tabs stay stable while filtering.
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { all: 0, fuel: 0, service: 0, expense: 0 }
+    for (const it of items ?? []) {
+      c.all++
+      c[it.kind]++
+    }
+    return c
+  }, [items])
 
   if (items === undefined) return <p className="history__loading">Đang tải…</p>
-  if (!items.length)
+
+  const bar =
+    counts.all > 0 ? (
+      <div className="hfilter" role="tablist" aria-label="Lọc theo loại bản ghi">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            role="tab"
+            aria-selected={filter === f.id}
+            className={`hfilter__tab${filter === f.id ? ' is-active' : ''}`}
+            data-kind={f.id}
+            onClick={() => setFilter(f.id)}
+          >
+            {f.label}
+            <span className="hfilter__count num">{counts[f.id]}</span>
+          </button>
+        ))}
+      </div>
+    ) : null
+
+  if (!shown.length) {
+    const e = EMPTY[filter]
     return (
-      <EmptyState
-        kind="fuel"
-        title="Chưa có bản ghi nào"
-        body="Bấm nút + để thêm lần đổ xăng, bảo dưỡng hoặc chi phí đầu tiên."
-        hint="Đã có dữ liệu cũ? Vào Cài đặt → Nhập dữ liệu."
-      />
+      <div className="history">
+        {bar}
+        <EmptyState
+          kind={filter === 'all' ? 'fuel' : filter}
+          title={e.title}
+          body={e.body}
+          {...(filter === 'all'
+            ? { hint: 'Đã có dữ liệu cũ? Vào Cài đặt → Nhập dữ liệu.' }
+            : {})}
+        />
+      </div>
     )
+  }
 
   return (
     <div className="history">
+      {bar}
       {blocks.map((b) => (
         <section className="history__month" key={b.key} aria-labelledby={`m-${b.key}`}>
           <h2 className="history__heading" id={`m-${b.key}`}>
@@ -55,10 +122,6 @@ export function HistoryScreen({ items, onOpen }: Props) {
               <li
                 key={`${it.kind}-${it.id}`}
                 className="animate-rise"
-                // The index runs across the whole timeline, not per month, so the
-                // cascade falls continuously down the page instead of restarting at
-                // every heading. Capped so a long list does not leave the last rows
-                // waiting half a second before they appear.
                 style={{ '--i': Math.min(order.get(it) ?? 0, 10) } as React.CSSProperties}
               >
                 <Row item={it} onOpen={onOpen} />
@@ -85,7 +148,10 @@ function Row({ item, onOpen }: { item: TimelineItem; onOpen: (i: TimelineItem) =
       <span className="row__dot" aria-hidden="true" />
       <span className="row__main">
         <span className="row__top">
-          <span className="row__title">{item.title}</span>
+          <span className="row__titlewrap">
+            <span className="row__title">{item.title}</span>
+            {item.badge ? <span className="row__badge">{item.badge}</span> : null}
+          </span>
           <span className="row__date num">{dateShort(item.date)}</span>
         </span>
         <span className="row__bottom">

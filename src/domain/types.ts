@@ -42,6 +42,9 @@ export interface Vehicle {
 export interface FuelEntry {
   id: string
   vehicle_id: string
+  /** Fuel actually put in on THIS fill. A vehicle can take more than one grade, so the
+   *  type belongs to the entry; null falls back to the vehicle's default. */
+  fuel_type: FuelType | null
   /** ISO yyyy-mm-dd. Stored as a string so sorting is lexicographic and timezone-free. */
   date: string
   /** Nullable on purpose. `0` means "not recorded", never "brand new vehicle" — docs §3.3. */
@@ -58,12 +61,20 @@ export interface FuelEntry {
   updated_at: string
 }
 
+/** One line of a service record. `amount` is optional: a user may price each item, or
+ *  price nothing and just record the total. The total is always stored either way. */
+export interface ServiceItem {
+  name: string
+  amount: number | null
+}
+
 export interface ServiceRecord {
   id: string
   vehicle_id: string
   date: string
   odometer_km: number | null
-  items: string[]
+  items: ServiceItem[]
+  /** Authoritative. Item amounts are optional detail that may not add up to it. */
   total_amount: number | null
   workshop: string | null
   note: string | null
@@ -109,4 +120,6 @@ export interface TimelineItem {
   subtitle: string | null
   /** Distance since the previous record of the same vehicle — the number users actually want. */
   delta_km: number | null
+  /** Short tag shown beside the title: the fuel grade, or the service item count. */
+  badge: string | null
 }

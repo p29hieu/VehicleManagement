@@ -65,6 +65,35 @@ class VehicleManagementDB extends Dexie {
       maintenanceRules: 'id, vehicle_id',
       reminders: 'id, vehicle_id, rule_id, status',
     })
+
+    // v2: a vehicle can take more than one fuel grade, so the grade moved onto the entry;
+    // and service items carry an optional per-item price.
+    this.version(2)
+      .stores({
+        fuelEntries:
+          'id, vehicle_id, date, fuel_type, [vehicle_id+date], [vehicle_id+odometer_km]',
+      })
+      .upgrade(async (tx) => {
+        // Existing fills predate the field. null means "use the vehicle's default grade",
+        // which is exactly what they were before, so no data is invented here.
+        await tx
+          .table('fuelEntries')
+          .toCollection()
+          .modify((e: { fuel_type?: unknown }) => {
+            if (e.fuel_type === undefined) e.fuel_type = null
+          })
+
+        // items: string[] -> { name, amount }[]. Amount is null because the old shape
+        // never carried per-item prices; the record's total is untouched.
+        await tx
+          .table('services')
+          .toCollection()
+          .modify((s: { items?: unknown }) => {
+            if (Array.isArray(s.items)) {
+              s.items = s.items.map((i) => (typeof i === 'string' ? { name: i, amount: null } : i))
+            }
+          })
+      })
   }
 }
 

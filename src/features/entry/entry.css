@@ -178,3 +178,79 @@
   background: color-mix(in oklab, var(--c-surface) 82%, transparent);
   backdrop-filter: blur(12px);
 }
+
+/* ── Service items with optional per-item price ──────────────────── */
+.svcitems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.svcitems__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 11px;
+  background: var(--c-surface-sunk);
+  border-radius: var(--radius-md);
+}
+
+.svcitems__name {
+  min-inline-size: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The shared money input is display-sized by default; scale it down to fit a row. */
+.svcitems__price .money__input { font-size: 0.9rem; padding: 4px 0; }
+.svcitems__price .money__suffix { font-size: 0.8rem; }
+
+.svcitems__remove {
+  inline-size: 32px;
+  block-size: 32px;
+  font-size: 0.85rem;
+  color: var(--c-ink-faint);
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.svcitems__remove:hover { color: var(--c-danger); background: var(--c-surface); }
+
+.svcitems__mismatch {
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  color: var(--c-ink);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--c-fuel) 18%, transparent),
+    color-mix(in oklab, var(--c-fuel) 6%, transparent)
+  );
+  border-inline-start: 3px solid var(--c-fuel);
+  border-radius: var(--radius);
+}
+
+.linkbtn {
+  font: inherit;
+  font-weight: 700;
+  color: var(--c-brand);
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Fuel-grade chips: amber needs dark ink, unlike the teal-backed chips. */
+.chip--fuel.is-active {
+  background-image: var(--g-fuel);
+  color: var(--c-on-fuel);
+  box-shadow: 0 3px 10px color-mix(in oklab, var(--c-fuel) 40%, transparent);
+}

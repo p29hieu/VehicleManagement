@@ -1,21 +1,19 @@
-import { useEffect, useRef, useState } from 'react'
-import type { RecordKind, Vehicle } from '../../domain/types'
-import { EXPENSE_CATEGORIES, SERVICE_ITEMS, fuelVerb, priceUnit, quantityUnit } from '../../domain/labels'
+import { useEffect, useState } from 'react'
+import type { FuelType, RecordKind, ServiceItem, Vehicle } from '../../domain/types'
+import { EXPENSE_CATEGORIES, fuelVerb } from '../../domain/labels'
 import { todayISO } from '../../lib/format'
+import { patchSettings } from '../../db'
+import { useSettings } from '../../hooks/useAppData'
 import {
-  deleteExpense,
-  deleteFuelEntry,
-  deleteService,
-  getExpense,
-  getFuelEntry,
-  getService,
-  saveExpense,
-  saveFuelEntry,
-  saveService,
+  deleteExpense, deleteFuelEntry, deleteService,
+  getExpense, getFuelEntry, getService,
+  saveExpense, saveFuelEntry, saveService,
 } from '../../db/repo'
 import { Field } from '../../components/Field'
 import { MoneyInput } from '../../components/MoneyInput'
 import { NumberInput } from '../../components/NumberInput'
+import { FuelFields } from './FuelFields'
+import { ServiceFields, itemsSum } from './ServiceFields'
 import './entry.css'
 
 export interface EntryTarget {
@@ -25,7 +23,6 @@ export interface EntryTarget {
 
 interface Props {
   vehicle: Vehicle
-  /** Latest known odometer, used to offer a starting point for a new record. */
   latestOdo: number | null
   target: EntryTarget | null
   onClose: () => void
@@ -35,24 +32,30 @@ interface FormState {
   date: string
   odometer_km: number | null
   total_amount: number | null
-  // fuel
+  /** Set once the user edits the total, after which it stops mirroring the item sum. */
+  total_touched: boolean
+  /** Same idea for the unit price: until the user types one, it mirrors the remembered
+   *  price for the selected grade, which may only arrive after the first render. */
+  price_touched: boolean
+  fuel_type: FuelType
   quantity: number | null
   unit_price: number | null
   is_full_tank: boolean
   missed_fill: boolean
   station: string
-  // service
-  items: string[]
+  items: ServiceItem[]
   workshop: string
-  // expense
   category: string
   note: string
 }
 
-const blank = (): FormState => ({
+const blank = (fuel: FuelType): FormState => ({
   date: todayISO(),
   odometer_km: null,
   total_amount: null,
+  total_touched: false,
+  price_touched: false,
+  fuel_type: fuel,
   quantity: null,
   unit_price: null,
   is_full_tank: false,
@@ -66,14 +69,34 @@ const blank = (): FormState => ({
 
 export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
   const editing = target !== null
+  const settings = useSettings()
   const [kind, setKind] = useState<RecordKind>(target?.kind ?? 'fuel')
-  const [form, setForm] = useState<FormState>(blank)
+  const [form, setForm] = useState<FormState>(() => blank(vehicle.fuel_type))
   const [error, setError] = useState<string | null>(null)
   const [more, setMore] = useState(false)
-  const firstRef = useRef<HTMLInputElement>(null)
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }))
+
+  /**
+   * The price actually used. Until the user types one it mirrors the remembered price for
+   * the selected grade, so it still appears when settings resolve after the first render.
+   */
+  const effectivePrice =
+    form.price_touched || editing
+      ? form.unit_price
+      : (settings.fuel_prices[form.fuel_type] ?? form.unit_price)
+
+  /** Switching grade swaps in that grade's remembered price. When a grade has none, the
+   *  current figure is kept rather than wiped — losing what the user just typed is worse
+   *  than offering a stale starting point they can edit. */
+  const changeFuelType = (f: FuelType) =>
+    setForm((prev) => ({
+      ...prev,
+      fuel_type: f,
+      unit_price: settings.fuel_prices[f] ?? effectivePrice,
+      price_touched: true,
+    }))
 
   useEffect(() => {
     if (!target) return
@@ -82,51 +105,44 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
         const r = await getFuelEntry(target.id)
         if (!r) return
         setForm((f) => ({
-          ...f,
-          date: r.date,
-          odometer_km: r.odometer_km,
-          total_amount: r.total_amount,
-          quantity: r.quantity,
-          unit_price: r.unit_price,
-          is_full_tank: r.is_full_tank,
-          missed_fill: r.missed_fill,
-          station: r.station ?? '',
-          note: r.note ?? '',
+          ...f, date: r.date, odometer_km: r.odometer_km, total_amount: r.total_amount,
+          total_touched: true, price_touched: true, fuel_type: r.fuel_type ?? vehicle.fuel_type,
+          quantity: r.quantity, unit_price: r.unit_price, is_full_tank: r.is_full_tank,
+          missed_fill: r.missed_fill, station: r.station ?? '', note: r.note ?? '',
         }))
-        if (r.quantity != null || r.unit_price != null || r.station) setMore(true)
+        if (r.quantity != null || r.station) setMore(true)
       } else if (target.kind === 'service') {
         const r = await getService(target.id)
         if (!r) return
         setForm((f) => ({
-          ...f,
-          date: r.date,
-          odometer_km: r.odometer_km,
-          total_amount: r.total_amount,
-          items: r.items,
-          workshop: r.workshop ?? '',
-          note: r.note ?? '',
+          ...f, date: r.date, odometer_km: r.odometer_km, total_amount: r.total_amount,
+          total_touched: true, price_touched: true, items: r.items, workshop: r.workshop ?? '', note: r.note ?? '',
         }))
       } else {
         const r = await getExpense(target.id)
         if (!r) return
         setForm((f) => ({
-          ...f,
-          date: r.date,
-          odometer_km: r.odometer_km,
-          total_amount: r.total_amount,
-          category: r.category,
-          note: r.note ?? '',
+          ...f, date: r.date, odometer_km: r.odometer_km, total_amount: r.total_amount,
+          total_touched: true, price_touched: true, category: r.category, note: r.note ?? '',
         }))
       }
     })()
-  }, [target])
+  }, [target, vehicle.fuel_type])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKey)
-    firstRef.current?.focus()
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  // Until the user touches the total, it tracks the sum of any priced service items.
+  const setItems = (items: ServiceItem[]) =>
+    setForm((f) => {
+      const sum = itemsSum(items)
+      return { ...f, items, ...(f.total_touched || sum == null ? {} : { total_amount: sum }) }
+    })
+
+  const setTotal = (v: number | null) => setForm((f) => ({ ...f, total_amount: v, total_touched: true }))
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -152,15 +168,31 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
     }
 
     if (kind === 'fuel') {
+      // Derive the quantity when the user gave money and a price but no litres — that is
+      // the figure the consumption engine needs, and asking for it twice is friction.
+      const quantity =
+        form.quantity ??
+        (effectivePrice != null && effectivePrice > 0 && form.total_amount != null
+          ? Math.round((form.total_amount / effectivePrice) * 100) / 100
+          : null)
+
       await saveFuelEntry({
         ...base,
-        quantity: form.quantity,
-        unit_price: form.unit_price,
+        fuel_type: form.fuel_type,
+        quantity,
+        unit_price: effectivePrice,
         is_full_tank: form.is_full_tank,
         missed_fill: form.missed_fill,
         station: form.station.trim() || null,
         payment_method: null,
       })
+
+      // Remember the price per grade so the next fill starts from it.
+      if (effectivePrice != null && effectivePrice > 0) {
+        await patchSettings({
+          fuel_prices: { ...settings.fuel_prices, [form.fuel_type]: effectivePrice },
+        })
+      }
     } else if (kind === 'service') {
       await saveService({ ...base, items: form.items, workshop: form.workshop.trim() || null })
     } else {
@@ -179,27 +211,19 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
   }
 
   const TITLE: Record<RecordKind, string> = {
-    fuel: fuelVerb(vehicle.fuel_type),
+    fuel: fuelVerb(form.fuel_type),
     service: 'Bảo dưỡng',
     expense: 'Chi phí khác',
   }
 
   return (
     <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <form
-        className="sheet"
-        onSubmit={submit}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="sheet-title"
-      >
+      <form className="sheet" onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="sheet-title">
         <header className="sheet__head">
           <h2 className="sheet__title" id="sheet-title">
             {TITLE[kind]} — {vehicle.name}
           </h2>
-          <button type="button" className="sheet__close" onClick={onClose} aria-label="Đóng">
-            ✕
-          </button>
+          <button type="button" className="sheet__close" onClick={onClose} aria-label="Đóng">✕</button>
         </header>
 
         {!editing && (
@@ -222,12 +246,7 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
 
         <div className="sheet__body">
           <Field label="Số tiền" htmlFor="f-amount">
-            <MoneyInput
-              id="f-amount"
-              big
-              value={form.total_amount}
-              onChange={(v) => set('total_amount', v)}
-            />
+            <MoneyInput id="f-amount" big value={form.total_amount} onChange={setTotal} />
           </Field>
 
           <Field
@@ -249,10 +268,49 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
           </Field>
 
           {kind === 'fuel' && (
-            <FuelExtras form={form} set={set} vehicle={vehicle} more={more} setMore={setMore} />
+            <FuelFields
+              fuelType={form.fuel_type}
+              unitPrice={effectivePrice}
+              quantity={form.quantity}
+              totalAmount={form.total_amount}
+              isFullTank={form.is_full_tank}
+              missedFill={form.missed_fill}
+              station={form.station}
+              onFuelType={changeFuelType}
+              onUnitPrice={(v) => setForm((f) => ({ ...f, unit_price: v, price_touched: true }))}
+              onQuantity={(v) => set('quantity', v)}
+              onFullTank={(v) => set('is_full_tank', v)}
+              onMissedFill={(v) => set('missed_fill', v)}
+              onStation={(v) => set('station', v)}
+              more={more}
+              onMore={setMore}
+            />
           )}
-          {kind === 'service' && <ServiceExtras form={form} set={set} />}
-          {kind === 'expense' && <ExpenseExtras form={form} set={set} />}
+
+          {kind === 'service' && (
+            <ServiceFields
+              items={form.items}
+              workshop={form.workshop}
+              totalAmount={form.total_amount}
+              totalTouched={form.total_touched}
+              onItems={setItems}
+              onWorkshop={(v) => set('workshop', v)}
+              onTotal={setTotal}
+            />
+          )}
+
+          {kind === 'expense' && (
+            <Field label="Nhóm chi phí" htmlFor="f-cat">
+              <select
+                id="f-cat"
+                className="input"
+                value={form.category}
+                onChange={(e) => set('category', e.target.value)}
+              >
+                {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </Field>
+          )}
 
           <Field label="Ngày" htmlFor="f-date">
             <input
@@ -275,164 +333,14 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
             />
           </Field>
 
-          {error && (
-            <p className="sheet__error" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <p className="sheet__error" role="alert">{error}</p>}
         </div>
 
         <footer className="sheet__foot">
-          {editing && (
-            <button type="button" className="btn btn--danger" onClick={remove}>
-              Xoá
-            </button>
-          )}
-          <button type="submit" className="btn btn--primary">
-            Lưu
-          </button>
+          {editing && <button type="button" className="btn btn--danger" onClick={remove}>Xoá</button>}
+          <button type="submit" className="btn btn--primary">Lưu</button>
         </footer>
       </form>
     </div>
-  )
-}
-
-type SetFn = <K extends keyof FormState>(k: K, v: FormState[K]) => void
-
-function FuelExtras({
-  form,
-  set,
-  vehicle,
-  more,
-  setMore,
-}: {
-  form: FormState
-  set: SetFn
-  vehicle: Vehicle
-  more: boolean
-  setMore: (v: boolean) => void
-}) {
-  return (
-    <>
-      {/* This flag decides whether L/100km can ever be computed exactly (docs §3.1),
-          so it is a pair of real buttons, not a checkbox hidden in an "advanced" section. */}
-      <Field label="Mức đổ">
-        <div className="segmented" role="radiogroup" aria-label="Mức đổ">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={form.is_full_tank}
-            className={`segmented__opt${form.is_full_tank ? ' is-active' : ''}`}
-            onClick={() => set('is_full_tank', true)}
-          >
-            Đổ đầy bình
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={!form.is_full_tank}
-            className={`segmented__opt${!form.is_full_tank ? ' is-active' : ''}`}
-            onClick={() => set('is_full_tank', false)}
-          >
-            Đổ một phần
-          </button>
-        </div>
-      </Field>
-
-      <button type="button" className="disclose" aria-expanded={more} onClick={() => setMore(!more)}>
-        {more ? '▾' : '▸'} Thêm chi tiết
-      </button>
-
-      {more && (
-        <>
-          <Field label={`Số lượng (${quantityUnit(vehicle.fuel_type)})`} htmlFor="f-qty">
-            <NumberInput
-              id="f-qty"
-              value={form.quantity}
-              onChange={(v) => set('quantity', v)}
-              suffix={quantityUnit(vehicle.fuel_type)}
-            />
-          </Field>
-          <Field label={`Đơn giá (${priceUnit(vehicle.fuel_type)})`} htmlFor="f-price">
-            <MoneyInput
-              id="f-price"
-              value={form.unit_price}
-              onChange={(v) => set('unit_price', v)}
-              suffix={priceUnit(vehicle.fuel_type)}
-            />
-          </Field>
-          <Field label="Trạm" htmlFor="f-station">
-            <input
-              id="f-station"
-              className="input"
-              type="text"
-              value={form.station}
-              onChange={(e) => set('station', e.target.value)}
-            />
-          </Field>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={form.missed_fill}
-              onChange={(e) => set('missed_fill', e.target.checked)}
-            />
-            <span>Có lần đổ trước đó tôi quên ghi</span>
-          </label>
-        </>
-      )}
-    </>
-  )
-}
-
-function ServiceExtras({ form, set }: { form: FormState; set: SetFn }) {
-  const toggle = (item: string) =>
-    set('items', form.items.includes(item) ? form.items.filter((i) => i !== item) : [...form.items, item])
-
-  return (
-    <>
-      <Field label="Hạng mục" hint="Chọn một hoặc nhiều">
-        <div className="chips">
-          {SERVICE_ITEMS.map((it) => (
-            <button
-              key={it}
-              type="button"
-              aria-pressed={form.items.includes(it)}
-              className={`chip${form.items.includes(it) ? ' is-active' : ''}`}
-              onClick={() => toggle(it)}
-            >
-              {it}
-            </button>
-          ))}
-        </div>
-      </Field>
-      <Field label="Gara" htmlFor="f-shop">
-        <input
-          id="f-shop"
-          className="input"
-          type="text"
-          value={form.workshop}
-          onChange={(e) => set('workshop', e.target.value)}
-        />
-      </Field>
-    </>
-  )
-}
-
-function ExpenseExtras({ form, set }: { form: FormState; set: SetFn }) {
-  return (
-    <Field label="Nhóm chi phí" htmlFor="f-cat">
-      <select
-        id="f-cat"
-        className="input"
-        value={form.category}
-        onChange={(e) => set('category', e.target.value)}
-      >
-        {EXPENSE_CATEGORIES.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
-    </Field>
   )
 }
