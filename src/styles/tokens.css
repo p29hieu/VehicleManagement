@@ -25,8 +25,10 @@
      themes, so this stays light in both — unlike --c-brand-ink, which flips. */
   --c-on-brand: oklch(97% 0.008 195);
   /* Amber is far too light to carry near-white text, so anything sitting on
-     --g-fuel uses dark ink instead. Same value in both themes. */
-  --c-on-fuel: oklch(24% 0.06 55);
+     --g-fuel uses dark ink instead. Same value in both themes.
+     19% is set by the DARK end of --g-fuel, not the light one: at 24% it measured
+     4.32:1 there, under AA. 19% gives 4.82:1 across the whole gradient. */
+  --c-on-fuel: oklch(19% 0.06 55);
 
   /* ── Semantic: tied to the kind of cost, never decorative ──────── */
   --c-fuel: oklch(72% 0.17 62);
@@ -104,7 +106,7 @@
     --c-brand-deep: oklch(58% 0.09 198);
     --c-brand-ink: oklch(16% 0.02 195);
     --c-on-brand: oklch(95% 0.012 195);
-    --c-on-fuel: oklch(24% 0.06 55);
+    --c-on-fuel: oklch(19% 0.06 55);
 
     --g-brand: linear-gradient(135deg, oklch(34% 0.06 198) 0%, oklch(26% 0.05 200) 54%, oklch(21% 0.04 205) 100%);
     --g-page:
@@ -135,7 +137,7 @@
   --c-brand-deep: oklch(58% 0.09 198);
   --c-brand-ink: oklch(16% 0.02 195);
   --c-on-brand: oklch(95% 0.012 195);
-  --c-on-fuel: oklch(24% 0.06 55);
+  --c-on-fuel: oklch(19% 0.06 55);
   --g-brand: linear-gradient(135deg, oklch(34% 0.06 198) 0%, oklch(26% 0.05 200) 54%, oklch(21% 0.04 205) 100%);
   --g-page:
     radial-gradient(120% 70% at 85% -5%, oklch(32% 0.05 62 / 0.26) 0%, transparent 62%),

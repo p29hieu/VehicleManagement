@@ -137,11 +137,20 @@
   color: var(--c-ink-faint);
 }
 
-/* ── Tab bar ─────────────────────────────────────────────────────── */
-.tabbar {
+/* ── Bottom furniture ────────────────────────────────────────────── */
+/* The PWA status bar and the navigation stick as ONE element. Sticking them separately
+   at bottom: 0 put them in the same place, and the status bar — being later in paint
+   order — swallowed every tap meant for the tab bar. */
+.appfoot {
   position: sticky;
   bottom: 0;
   z-index: 20;
+}
+
+/* ── Tab bar ─────────────────────────────────────────────────────── */
+.tabbar {
+  /* Positioned so .tabbar__indicator, which is absolute, measures against the nav. */
+  position: relative;
   display: grid;
   grid-template-columns: repeat(2, 1fr) auto repeat(2, 1fr);
   align-items: center;

@@ -204,10 +204,36 @@ Mức tiêu thụ ra đúng 8,54 L/100km sau khi đặt đơn giá.
 ### P5 — PWA
 - Manifest: **`id` đặt tường minh ngay từ đầu** (bỏ trống thì mặc định bằng `start_url`;
   sau này đổi `start_url` là trình duyệt coi như app khác, mọi bản đã cài thành mồ côi).
-- `vite-plugin-pwa`, `registerType: 'autoUpdate'`, `navigateFallback: 'index.html'`.
+- `vite-plugin-pwa`, ~~`registerType: 'autoUpdate'`~~ → **`'prompt'`**, `navigateFallback: 'index.html'`.
 - **Không** đặt `runtimeCaching` cho `accounts.google.com` hay `*.googleapis.com`.
 - Giữ lại một thế hệ asset cũ (GitHub Pages đặt `max-age=600` cho **mọi** file kể cả file có hash).
 - ✅ Xong khi: **chế độ máy bay — mở app, thêm bản ghi, xem lịch sử, deep link đều chạy.**
+
+✅ **Đã xong.** Kiểm chứng với server đã tắt thật (`curl` trả `000` — connection refused),
+không phải mô phỏng:
+
+| Tiêu chí | Kết quả |
+|---|---|
+| Mở app khi offline | ✅ render đầy đủ, 22 mục trong `workbox-precache` |
+| Thêm bản ghi khi offline | ✅ lưu được, **còn nguyên sau khi tải lại trang** (IndexedDB) |
+| Xem lịch sử khi offline | ✅ |
+| Deep link khi offline | ✅ `/VehicleManagement/bao-cao` đi qua `navigateFallback` |
+| Font khi offline | ✅ `document.fonts.check()` xác nhận Be Vietnam Pro + IBM Plex Mono đã nạp |
+
+Ba quyết định lệch so với kế hoạch ban đầu, mỗi cái vì một lý do đo được:
+
+1. **`registerType: 'prompt'` thay cho `'autoUpdate'`.** GitHub Pages trả `max-age=600`
+   cho mọi file, nên một lần tráo đổi ngầm có thể để lại document cũ trỏ vào chunk mà
+   service worker mới đã dọn. Người dùng bấm "Tải lại" thì document và asset mới lên
+   cùng lúc. `injectRegister: null` vì `PwaStatus.tsx` tự đăng ký qua `useRegisterSW`.
+2. **Font tự host** (`public/fonts/`, 10 file woff2, 108 kB). Không còn tham chiếu nào
+   tới `fonts.googleapis.com`/`fonts.gstatic.com` — nếu còn thì lần mở app đầu tiên khi
+   offline sẽ rơi về font hệ thống. Bỏ `latin-ext`: mọi ký tự tiếng Việt ngoài `latin`
+   đều nằm trong `vietnamese`.
+3. **`.appfoot` gom thanh trạng thái và thanh điều hướng thành một khối sticky.** Hai
+   thanh cùng `sticky; bottom: 0` thì chồng lên nhau; `elementFromPoint` cho thấy thanh
+   offline **nuốt toàn bộ cú chạm** vào tab bar. Kèm theo: `--c-on-fuel` từ 24% xuống
+   19% — ở 24% chữ trên đầu tối của `--g-fuel` chỉ đạt 4,32:1, dưới chuẩn AA.
 
 ### P6 — Nhập / Xuất
 - Nhập file `vehicle-management/import` v1 (`03-DATA-MODEL.md` §7.2) — đây là đường đi chính.

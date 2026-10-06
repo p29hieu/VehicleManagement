@@ -7,12 +7,13 @@
     <meta name="description" content="Theo dõi chi phí nhiên liệu và lịch bảo dưỡng xe máy, ô tô. Hoạt động offline." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icon-180.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&family=IBM+Plex+Mono:wght@500;600&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Fonts are self-hosted (src/styles/fonts.css): the app must keep its typography
+         offline, and a cold load should not call a third party. Only the body weight is
+         preloaded; the rest arrive with the stylesheet. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+      href="/fonts/be-vietnam-pro-400-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+      href="/fonts/be-vietnam-pro-400-vietnamese.woff2" />
     <title>VehicleManagement — Quản lý phương tiện</title>
   </head>
   <body>

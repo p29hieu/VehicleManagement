@@ -2,6 +2,7 @@ import { Suspense, lazy, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { EmptyState } from './components/EmptyState'
 import { TabBar } from './components/TabBar'
+import { PwaStatus } from './components/PwaStatus'
 import { HistoryScreen } from './features/history/HistoryScreen'
 import { ReportsScreen } from './features/reports/ReportsScreen'
 import { EntrySheet, type EntryTarget } from './features/entry/EntrySheet'
@@ -98,7 +99,11 @@ export default function App() {
         </Routes>
       </main>
 
-      <TabBar canAdd={hasVehicle} onAdd={() => setSheet({ open: true, target: null })} />
+      {/* One sticky unit: the status bar sits above the navigation instead of on top of it. */}
+      <div className="appfoot">
+        <PwaStatus />
+        <TabBar canAdd={hasVehicle} onAdd={() => setSheet({ open: true, target: null })} />
+      </div>
 
       {sheet.open && active && (
         <EntrySheet

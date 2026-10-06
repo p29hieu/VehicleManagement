@@ -12,7 +12,14 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' rather than 'autoUpdate': GitHub Pages serves index.html with a ten-minute
+      // max-age, so a silent swap can leave a stale document pointing at chunks the new
+      // service worker has already cleaned up. Letting the user trigger the reload means
+      // the new document and its assets activate together.
+      registerType: 'prompt',
+      // The React hook in PwaStatus.tsx does the registering; the injected script would
+      // register a second time.
+      injectRegister: null,
       includeAssets: ['favicon.svg', 'icon-180.png'],
       manifest: {
         // `id` is set explicitly on day one. Left out it defaults to start_url, and
