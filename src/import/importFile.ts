@@ -1,6 +1,6 @@
 import { clearAllData, db, patchSettings } from '../db'
 import { importFileSchema, type ImportFile } from '../domain/schema'
-import type { FuelType } from '../domain/types'
+import { DEFAULT_FUEL_TYPES, type FuelTypeRow } from '../domain/fuelTypes'
 import { nfc, now } from '../lib/id'
 import { dateFull, todayISO } from '../lib/format'
 
@@ -144,7 +144,36 @@ export async function runImport(raw: unknown, opts: ImportOptions): Promise<Impo
     },
   )
 
-  const prices = (file.settings?.fuel_prices ?? {}) as Partial<Record<FuelType, number | null>>
+  // A file may reference a fuel type this device has never seen — a built-in that was
+  // deleted, or one the exporting device invented. Create it rather than leaving records
+  // pointing at nothing, and carry any legacy prices onto the rows.
+  const prices = (file.settings?.fuel_prices ?? {}) as Record<string, number | null>
+  const referenced = new Set<string>()
+  for (const v of file.vehicles) if (v.fuel_type) referenced.add(v.fuel_type)
+  for (const e of file.fuel_entries) if (e.fuel_type) referenced.add(e.fuel_type)
+  for (const id of Object.keys(prices)) referenced.add(id)
+
+  const known = new Map((await db.fuelTypes.toArray()).map((f) => [f.id, f]))
+  const toPut: FuelTypeRow[] = []
+  let nextSort = Math.max(0, ...[...known.values()].map((f) => f.sort))
+
+  for (const id of referenced) {
+    const existing = known.get(id)
+    const price = prices[id] ?? null
+    if (existing) {
+      if (price != null && existing.price !== price) toPut.push({ ...existing, price })
+      continue
+    }
+    const builtin = DEFAULT_FUEL_TYPES.find((d) => d.id === id)
+    nextSort += 10
+    toPut.push(
+      builtin
+        ? { ...builtin, price: price ?? builtin.price }
+        : { id, name: id, short: id.slice(0, 8), unit: 'liter', price, sort: nextSort, archived: false, builtin: false },
+    )
+  }
+  if (toPut.length) await db.fuelTypes.bulkPut(toPut)
+
   await patchSettings({
     ...(file.settings?.currency ? { currency: file.settings.currency } : {}),
     fuel_prices: prices,

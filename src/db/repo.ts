@@ -2,13 +2,17 @@ import { db } from './index'
 import { newId, nfc, now } from '../lib/id'
 import type {
   ExpenseRecord,
-  FuelType,
   FuelEntry,
   ServiceRecord,
   TimelineItem,
   Vehicle,
 } from '../domain/types'
-import { FUEL_TYPE_SHORT, fuelVerb, quantityUnit } from '../domain/labels'
+import {
+  resolveFuelType,
+  unitLabel,
+  verbForUnit,
+  type FuelTypeRow,
+} from '../domain/fuelTypes'
 import { dec2, money } from '../lib/format'
 import { consumptionByEntry } from '../domain/consumption'
 
@@ -48,6 +52,41 @@ export async function deleteVehicle(id: string): Promise<void> {
   )
 }
 
+// ── fuel types ──────────────────────────────────────────────────────────────
+export const listFuelTypes = () => db.fuelTypes.orderBy('sort').toArray()
+
+export async function listActiveFuelTypes(): Promise<FuelTypeRow[]> {
+  return (await listFuelTypes()).filter((f) => !f.archived)
+}
+
+export async function saveFuelType(row: FuelTypeRow): Promise<void> {
+  await db.fuelTypes.put({ ...row, name: nfc(row.name), short: nfc(row.short) })
+}
+
+/** How many records point at this type. Deleting one that is in use would orphan them. */
+export async function fuelTypeUsage(id: string): Promise<{ vehicles: number; entries: number }> {
+  const [vehicles, entries] = await Promise.all([
+    db.vehicles.filter((v) => v.fuel_type === id).count(),
+    db.fuelEntries.where('fuel_type').equals(id).count(),
+  ])
+  return { vehicles, entries }
+}
+
+/**
+ * Removes a fuel type only when nothing references it. A type that history depends on is
+ * archived instead: it disappears from the pickers while old rows keep rendering.
+ */
+export async function deleteFuelType(id: string): Promise<{ ok: true } | { ok: false; usage: { vehicles: number; entries: number } }> {
+  const usage = await fuelTypeUsage(id)
+  if (usage.vehicles > 0 || usage.entries > 0) return { ok: false, usage }
+  await db.fuelTypes.delete(id)
+  return { ok: true }
+}
+
+export async function setFuelTypeArchived(id: string, archived: boolean): Promise<void> {
+  await db.fuelTypes.update(id, { archived })
+}
+
 // ── records ─────────────────────────────────────────────────────────────────
 export async function saveFuelEntry(e: New<FuelEntry>): Promise<string> {
   const row = stamp(e) as FuelEntry
@@ -77,11 +116,11 @@ export const getService = (id: string) => db.services.get(id)
 export const getExpense = (id: string) => db.expenses.get(id)
 
 // ── timeline ────────────────────────────────────────────────────────────────
-function fuelSubtitle(e: FuelEntry, grade: FuelType): string | null {
+function fuelSubtitle(e: FuelEntry, grade: FuelTypeRow): string | null {
   const bits: string[] = []
   // Quantity and unit price together are what let a user sanity-check a past fill.
   if (e.quantity != null) {
-    const q = `${dec2(e.quantity)} ${quantityUnit(grade)}`
+    const q = `${dec2(e.quantity)} ${unitLabel(grade.unit)}`
     bits.push(e.unit_price != null ? `${q} × ${money(e.unit_price)}` : q)
   } else if (e.unit_price != null) {
     bits.push(money(e.unit_price))
@@ -108,11 +147,12 @@ function serviceSubtitle(s: ServiceRecord): string | null {
  * zero, because `0`/null means "not recorded", not "the vehicle did not move" (docs §3.3).
  */
 export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> {
-  const [fuel, services, expenses, vehicle] = await Promise.all([
+  const [fuel, services, expenses, vehicle, fuelTypes] = await Promise.all([
     db.fuelEntries.where('vehicle_id').equals(vehicleId).toArray(),
     db.services.where('vehicle_id').equals(vehicleId).toArray(),
     db.expenses.where('vehicle_id').equals(vehicleId).toArray(),
     db.vehicles.get(vehicleId),
+    listFuelTypes(),
   ])
 
   // One pass over the whole fuel log; each row then reads its own figure out of the map.
@@ -121,7 +161,8 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
   const items: TimelineItem[] = [
     ...fuel.map<TimelineItem>((e) => {
       // The entry's own grade wins; null means it was filled with the vehicle's default.
-      const grade = e.fuel_type ?? vehicle?.fuel_type ?? 'ron95'
+      // A grade the user has since deleted still renders, as a visible placeholder.
+      const grade = resolveFuelType(e.fuel_type, fuelTypes, vehicle?.fuel_type)
       return {
         kind: 'fuel',
         id: e.id,
@@ -129,10 +170,10 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
         date: e.date,
         odometer_km: e.odometer_km,
         total_amount: e.total_amount,
-        title: fuelVerb(grade),
+        title: verbForUnit(grade.unit),
         subtitle: fuelSubtitle(e, grade),
         delta_km: null,
-        badge: FUEL_TYPE_SHORT[grade],
+        badge: grade.short,
         consumption: (() => {
           const c = consumption.get(e.id)
           return c ? { l100: c.l100, exact: c.exact, outOfBand: c.outOfBand } : null

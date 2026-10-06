@@ -1,28 +1,26 @@
 import { useState } from 'react'
-import { DB_NAME, clearAllData, patchSettings } from '../../db'
-import { FUEL_TYPES, type FuelType, type Vehicle } from '../../domain/types'
-import { FUEL_TYPE_LABEL, VEHICLE_KIND_LABEL, priceUnit } from '../../domain/labels'
-import { useCounts, useSettings, useVehicles } from '../../hooks/useAppData'
-import { MoneyInput } from '../../components/MoneyInput'
-import { Field } from '../../components/Field'
+import { DB_NAME, clearAllData } from '../../db'
+import type { Vehicle } from '../../domain/types'
+import { VEHICLE_KIND_LABEL } from '../../domain/labels'
+import { priceUnitLabel, resolveFuelType, unitLabel, type FuelTypeRow } from '../../domain/fuelTypes'
+import { FuelTypeSheet } from './FuelTypeSheet'
+import { useCounts, useFuelTypes, useVehicles } from '../../hooks/useAppData'
 import { VehicleSheet } from '../vehicles/VehicleSheet'
 import { ImportPanel } from './ImportPanel'
 import './settings.css'
 
 export function SettingsScreen() {
   const vehicles = useVehicles()
-  const settings = useSettings()
+  const fuelTypes = useFuelTypes()
   const counts = useCounts()
   const [editing, setEditing] = useState<Vehicle | null | undefined>(undefined)
+  const [editingFuel, setEditingFuel] = useState<FuelTypeRow | null | undefined>(undefined)
 
   async function wipe() {
     if (!confirm('Xoá TOÀN BỘ dữ liệu trên thiết bị này? Không hoàn tác được.')) return
     if (!confirm('Chắc chắn chứ? Mọi phương tiện và bản ghi sẽ biến mất.')) return
     await clearAllData()
   }
-
-  const setPrice = (f: FuelType, v: number | null) =>
-    void patchSettings({ fuel_prices: { ...settings.fuel_prices, [f]: v } })
 
   return (
     <div className="settings">
@@ -34,7 +32,7 @@ export function SettingsScreen() {
               <button type="button" className="vlist__row" onClick={() => setEditing(v)}>
                 <span className="vlist__name">{v.name}</span>
                 <span className="vlist__meta">
-                  {VEHICLE_KIND_LABEL[v.kind]} · {FUEL_TYPE_LABEL[v.fuel_type]}
+                  {VEHICLE_KIND_LABEL[v.kind]} · {resolveFuelType(v.fuel_type, fuelTypes ?? []).name}
                   {v.plate ? ` · ${v.plate}` : ''}
                 </span>
               </button>
@@ -48,23 +46,38 @@ export function SettingsScreen() {
       </section>
 
       <section className="panel">
-        <h2 className="panel__title">Đơn giá nhiên liệu</h2>
+        <h2 className="panel__title">Loại nhiên liệu</h2>
         <p className="panel__hint">
-          Điền đơn giá để app suy ra số lít từ số tiền. Thiếu nó thì chỉ số tiêu thụ
-          (lít/100km) không tính được.
+          Thêm, sửa hoặc xoá cho hợp với xe bạn đang dùng. Đơn giá ở đây là giá mặc định cho
+          lần đổ tới; mỗi lần đổ bạn vẫn sửa được, và giá mới sẽ được nhớ lại.
         </p>
-        <div className="prices">
-          {FUEL_TYPES.filter((f) => f !== 'hybrid').map((f) => (
-            <Field key={f} label={FUEL_TYPE_LABEL[f]} htmlFor={`p-${f}`}>
-              <MoneyInput
-                id={`p-${f}`}
-                value={settings.fuel_prices[f] ?? null}
-                onChange={(v) => setPrice(f, v)}
-                suffix={priceUnit(f)}
-              />
-            </Field>
+        <ul className="ftlist">
+          {(fuelTypes ?? []).map((f) => (
+            <li key={f.id}>
+              <button
+                type="button"
+                className="ftlist__row"
+                data-archived={f.archived ? '' : undefined}
+                onClick={() => setEditingFuel(f)}
+              >
+                <span className="ftlist__main">
+                  <span className="ftlist__name">{f.name}</span>
+                  <span className="ftlist__meta">
+                    {f.short} · {unitLabel(f.unit)}
+                    {f.archived ? ' · đang ẩn' : ''}
+                  </span>
+                </span>
+                <span className="ftlist__price num">
+                  {f.price != null ? `${f.price.toLocaleString('vi-VN')} ${priceUnitLabel(f.unit)}` : '—'}
+                </span>
+              </button>
+            </li>
           ))}
-        </div>
+          {fuelTypes?.length === 0 && <li className="vlist__empty">Chưa có loại nhiên liệu nào.</li>}
+        </ul>
+        <button type="button" className="btn btn--ghost" onClick={() => setEditingFuel(null)}>
+          + Thêm loại nhiên liệu
+        </button>
       </section>
 
       <ImportPanel />
@@ -95,6 +108,13 @@ export function SettingsScreen() {
 
       {editing !== undefined && (
         <VehicleSheet vehicle={editing} onClose={() => setEditing(undefined)} />
+      )}
+      {editingFuel !== undefined && (
+        <FuelTypeSheet
+          row={editingFuel}
+          existing={fuelTypes ?? []}
+          onClose={() => setEditingFuel(undefined)}
+        />
       )}
     </div>
   )

@@ -153,3 +153,41 @@
     color-mix(in oklab, var(--c-fuel) 5%, transparent)
   );
 }
+
+/* ── Fuel type list ──────────────────────────────────────────────── */
+.ftlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+
+.ftlist__row {
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--c-surface-sunk);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.ftlist__row:hover { border-color: color-mix(in oklab, var(--c-fuel) 55%, transparent); transform: translateX(2px); }
+.ftlist__row:active { transform: scale(0.99); }
+
+/* An archived type is still listed, so it can be brought back, but reads as inactive. */
+.ftlist__row[data-archived] { opacity: 0.55; }
+
+.ftlist__main { min-inline-size: 0; display: grid; gap: 2px; }
+.ftlist__name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ftlist__meta { font-size: 0.78rem; color: var(--c-ink-soft); }
+.ftlist__price { flex: none; font-size: 0.85rem; font-weight: 600; color: var(--c-ink-soft); }

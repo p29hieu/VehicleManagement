@@ -2,7 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
 import type { Vehicle } from '../../domain/types'
 import { averageConsumption, forecastNextFill } from '../../domain/consumption'
-import { isElectric, quantityUnit } from '../../domain/labels'
+import { resolveFuelType, unitLabel } from '../../domain/fuelTypes'
+import { useFuelTypes } from '../../hooks/useAppData'
 import { dateFull, dec1, dec2, km } from '../../lib/format'
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
  * rather than printing a number the log cannot support (docs §5).
  */
 export function FuelSummary({ vehicle }: Props) {
+  const fuelTypes = useFuelTypes()
   const data = useLiveQuery(
     async () => {
       const fuel = await db.fuelEntries.where('vehicle_id').equals(vehicle.id).toArray()
@@ -33,7 +35,7 @@ export function FuelSummary({ vehicle }: Props) {
   const { count, avg, forecast } = data
   if (count === 0) return null
 
-  const unit = `${quantityUnit(vehicle.fuel_type)}/100km`
+  const unit = `${unitLabel(resolveFuelType(vehicle.fuel_type, fuelTypes ?? []).unit)}/100km`
   const overdue = forecast != null && forecast.daysRemaining < 0
 
   return (
@@ -62,7 +64,7 @@ export function FuelSummary({ vehicle }: Props) {
           </>
         ) : (
           <span className="fsum__none">
-            Chưa tính được — cần số lượng {isElectric(vehicle.fuel_type) ? 'kWh' : 'lít'} hoặc đơn giá
+            Chưa tính được — cần số lượng {unitLabel(resolveFuelType(vehicle.fuel_type, fuelTypes ?? []).unit)} hoặc đơn giá
           </span>
         )}
       </div>

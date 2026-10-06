@@ -1,11 +1,12 @@
-import { FUEL_TYPES, type FuelType } from '../../domain/types'
-import { FUEL_TYPE_LABEL, priceUnit, quantityUnit } from '../../domain/labels'
+import type { FuelType } from '../../domain/types'
+import { priceUnitLabel, unitLabel, type FuelTypeRow } from '../../domain/fuelTypes'
 import { Field } from '../../components/Field'
 import { MoneyInput } from '../../components/MoneyInput'
 import { NumberInput } from '../../components/NumberInput'
 import { dec2 } from '../../lib/format'
 
 interface Props {
+  fuelTypes: readonly FuelTypeRow[]
   fuelType: FuelType
   unitPrice: number | null
   quantity: number | null
@@ -24,9 +25,10 @@ interface Props {
 }
 
 export function FuelFields({
-  fuelType, unitPrice, quantity, totalAmount, isFullTank, missedFill, station,
+  fuelTypes, fuelType, unitPrice, quantity, totalAmount, isFullTank, missedFill, station,
   onFuelType, onUnitPrice, onQuantity, onFullTank, onMissedFill, onStation, more, onMore,
 }: Props) {
+  const unit = fuelTypes.find((f) => f.id === fuelType)?.unit ?? 'liter'
   // Shown rather than silently stored, so the figure the maths will use is visible up front.
   const derived =
     quantity == null && unitPrice != null && unitPrice > 0 && totalAmount != null
@@ -37,23 +39,28 @@ export function FuelFields({
     <>
       <Field label="Loại nhiên liệu" hint="Một xe có thể đổ nhiều loại — chọn loại của lần này">
         <div className="chips" role="radiogroup" aria-label="Loại nhiên liệu">
-          {FUEL_TYPES.filter((f) => f !== 'hybrid').map((f) => (
+          {fuelTypes.map((f) => (
             <button
-              key={f}
+              key={f.id}
               type="button"
               role="radio"
-              aria-checked={fuelType === f}
-              className={`chip chip--fuel${fuelType === f ? ' is-active' : ''}`}
-              onClick={() => onFuelType(f)}
+              aria-checked={fuelType === f.id}
+              className={`chip chip--fuel${fuelType === f.id ? ' is-active' : ''}`}
+              onClick={() => onFuelType(f.id)}
             >
-              {FUEL_TYPE_LABEL[f]}
+              {f.name}
             </button>
           ))}
+          {fuelTypes.length === 0 && (
+            <span className="field__msg">
+              Chưa có loại nhiên liệu nào — thêm ở Cài đặt → Loại nhiên liệu.
+            </span>
+          )}
         </div>
       </Field>
 
       <Field
-        label={`Đơn giá (${priceUnit(fuelType)})`}
+        label={`Đơn giá (${priceUnitLabel(unit)})`}
         htmlFor="f-price"
         hint="Sửa ở đây sẽ được nhớ làm đơn giá mặc định cho lần sau"
       >
@@ -61,7 +68,7 @@ export function FuelFields({
           id="f-price"
           value={unitPrice}
           onChange={onUnitPrice}
-          suffix={priceUnit(fuelType)}
+          suffix={priceUnitLabel(unit)}
         />
       </Field>
 
@@ -97,11 +104,11 @@ export function FuelFields({
       {more && (
         <>
           <Field
-            label={`Số lượng (${quantityUnit(fuelType)})`}
+            label={`Số lượng (${unitLabel(unit)})`}
             htmlFor="f-qty"
             hint={
               derived != null
-                ? `Để trống sẽ tự tính: ${dec2(derived)} ${quantityUnit(fuelType)}`
+                ? `Để trống sẽ tự tính: ${dec2(derived)} ${unitLabel(unit)}`
                 : undefined
             }
           >
@@ -109,7 +116,7 @@ export function FuelFields({
               id="f-qty"
               value={quantity}
               onChange={onQuantity}
-              suffix={quantityUnit(fuelType)}
+              suffix={unitLabel(unit)}
             />
           </Field>
           <Field label="Trạm" htmlFor="f-station">

@@ -3,8 +3,12 @@
 export const VEHICLE_KINDS = ['car', 'motorcycle', 'ev_car', 'ev_motorcycle', 'truck'] as const
 export type VehicleKind = (typeof VEHICLE_KINDS)[number]
 
-export const FUEL_TYPES = ['ron95', 'e5ron92', 'diesel', 'electric', 'hybrid'] as const
-export type FuelType = (typeof FUEL_TYPES)[number]
+/**
+ * Id of a row in the user-managed `fuelTypes` table (see domain/fuelTypes.ts).
+ * It is a plain string rather than a union because the set is the user's to change:
+ * they can add, rename and remove types to suit the vehicles they actually own.
+ */
+export type FuelType = string
 
 export const ANCHOR_KINDS = ['service', 'completion', 'baseline'] as const
 export type AnchorKind = (typeof ANCHOR_KINDS)[number]
@@ -99,8 +103,8 @@ export interface AppSettings {
   volume_unit: string
   locale: string
   timezone: string
-  /** Price per litre / kWh by fuel type. Null until the user fills it in; without it
-   *  total_amount cannot be turned into a quantity, so L/100km stays unavailable. */
+  /** Legacy: prices now live on each row of the `fuelTypes` table. Kept so import files
+   *  written before that move still carry their prices across. */
   fuel_prices: Partial<Record<FuelType, number | null>>
   active_vehicle_id: string | null
   updated_at: string

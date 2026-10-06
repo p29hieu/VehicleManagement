@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { DEFAULT_SETTINGS, db, getSettings } from '../db'
-import { buildTimeline, latestOdometer, listVehicles } from '../db/repo'
+import { buildTimeline, latestOdometer, listFuelTypes, listVehicles } from '../db/repo'
 
 /** Reactive reads straight from IndexedDB — no copy of the data is kept in a client store. */
 
@@ -51,4 +51,13 @@ export function useCounts() {
     [],
     undefined,
   )
+}
+
+export function useFuelTypes() {
+  return useLiveQuery(() => listFuelTypes(), [], undefined)
+}
+
+/** Types offered in the pickers: everything the user has not archived. */
+export function useActiveFuelTypes() {
+  return useLiveQuery(async () => (await listFuelTypes()).filter((f) => !f.archived), [], undefined)
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ANCHOR_KINDS, FUEL_TYPES, VEHICLE_KINDS } from './types'
+import { ANCHOR_KINDS, VEHICLE_KINDS } from './types'
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải ở dạng yyyy-mm-dd')
 const nullableNum = z.number().finite().nullable()
@@ -13,7 +13,7 @@ export const vehicleSchema = z.object({
   model: nullableStr,
   plate: nullableStr,
   year: z.number().int().nullable(),
-  fuel_type: z.enum(FUEL_TYPES),
+  fuel_type: z.string().min(1),
   tank_capacity_l: nullableNum,
   battery_kwh: nullableNum,
   initial_odometer_km: z.number().int().min(0),
@@ -30,7 +30,7 @@ export const fuelEntrySchema = z.object({
   date: isoDate,
   odometer_km: z.number().int().min(0).nullable(),
   // Optional so files written before per-entry fuel types still import cleanly.
-  fuel_type: z.enum(FUEL_TYPES).nullable().optional(),
+  fuel_type: z.string().min(1).nullable().optional(),
   quantity: nullableNum,
   unit_price: nullableNum,
   total_amount: nullableNum,

@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie'
+import { DEFAULT_FUEL_TYPES, type FuelTypeRow } from '../domain/fuelTypes'
 import type {
   AppSettings,
   ExpenseRecord,
@@ -51,6 +52,7 @@ class VehicleManagementDB extends Dexie {
   settings!: Table<AppSettings, string>
   maintenanceRules!: Table<MaintenanceRuleRow, string>
   reminders!: Table<ReminderRow, string>
+  fuelTypes!: Table<FuelTypeRow, string>
 
   constructor() {
     super(DB_NAME)
@@ -94,10 +96,36 @@ class VehicleManagementDB extends Dexie {
             }
           })
       })
+
+    // v3: fuel types become user data. The built-ins keep their old ids, so every record
+    // written before this table existed still resolves without being rewritten.
+    this.version(3)
+      .stores({ fuelTypes: 'id, sort, archived' })
+      .upgrade(async (tx) => {
+        const table = tx.table('fuelTypes')
+        if ((await table.count()) > 0) return
+
+        // Carry the prices across from where they used to live.
+        const settings = (await tx.table('settings').get('singleton')) as
+          | { fuel_prices?: Record<string, number | null> }
+          | undefined
+        const prices = settings?.fuel_prices ?? {}
+
+        await table.bulkAdd(
+          DEFAULT_FUEL_TYPES.map((f) => ({ ...f, price: prices[f.id] ?? null })),
+        )
+      })
   }
 }
 
 export const db = new VehicleManagementDB()
+
+/** Seed the built-in fuel types on a database that was created fresh (no upgrade runs). */
+db.on('ready', async () => {
+  if ((await db.fuelTypes.count()) === 0) {
+    await db.fuelTypes.bulkAdd(DEFAULT_FUEL_TYPES.map((f) => ({ ...f })))
+  }
+})
 
 export const DEFAULT_SETTINGS: AppSettings = {
   id: 'singleton',
@@ -124,7 +152,7 @@ export async function patchSettings(patch: Partial<AppSettings>): Promise<void> 
 export async function clearAllData(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.vehicles, db.fuelEntries, db.services, db.expenses, db.maintenanceRules, db.reminders, db.settings],
+    [db.vehicles, db.fuelEntries, db.services, db.expenses, db.maintenanceRules, db.reminders, db.settings, db.fuelTypes],
     async () => {
       await Promise.all([
         db.vehicles.clear(),
@@ -135,6 +163,9 @@ export async function clearAllData(): Promise<void> {
         db.reminders.clear(),
         db.settings.clear(),
       ])
+      // Wiping everything must not leave the app with no fuel types to pick from.
+      await db.fuelTypes.clear()
+      await db.fuelTypes.bulkAdd(DEFAULT_FUEL_TYPES.map((f) => ({ ...f })))
     },
   )
 }

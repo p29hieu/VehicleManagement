@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { CONSUMPTION_BAND, FUEL_TYPES, VEHICLE_KINDS, type FuelType, type Vehicle, type VehicleKind } from '../../domain/types'
-import { FUEL_TYPE_LABEL, VEHICLE_KIND_LABEL } from '../../domain/labels'
+import { CONSUMPTION_BAND, VEHICLE_KINDS, type FuelType, type Vehicle, type VehicleKind } from '../../domain/types'
+import { VEHICLE_KIND_LABEL } from '../../domain/labels'
+import { pickerOptions } from '../../domain/fuelTypes'
+import { useFuelTypes } from '../../hooks/useAppData'
 import { deleteVehicle, saveVehicle } from '../../db/repo'
 import { Field } from '../../components/Field'
 import { NumberInput } from '../../components/NumberInput'
@@ -11,9 +13,11 @@ interface Props {
 }
 
 export function VehicleSheet({ vehicle, onClose }: Props) {
+  const allFuelTypes = useFuelTypes() ?? []
   const [name, setName] = useState(vehicle?.name ?? '')
   const [kind, setKind] = useState<VehicleKind>(vehicle?.kind ?? 'motorcycle')
-  const [fuelType, setFuelType] = useState<FuelType>(vehicle?.fuel_type ?? 'ron95')
+  const [fuelType, setFuelType] = useState<FuelType>(vehicle?.fuel_type ?? '')
+  const fuelTypes = pickerOptions(allFuelTypes, fuelType)
   const [plate, setPlate] = useState(vehicle?.plate ?? '')
   const [make, setMake] = useState(vehicle?.make ?? '')
   const [model, setModel] = useState(vehicle?.model ?? '')
@@ -30,6 +34,7 @@ export function VehicleSheet({ vehicle, onClose }: Props) {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return setError('Nhập tên xe.')
+    if (!fuelType) return setError('Chọn loại nhiên liệu.')
     // Band follows the vehicle class: a motorcycle at 2.3 L/100km is normal but would be
     // rejected by a car-shaped band (docs §3.4).
     const [lo, hi] = CONSUMPTION_BAND[kind]
@@ -82,7 +87,12 @@ export function VehicleSheet({ vehicle, onClose }: Props) {
           </Field>
           <Field label="Nhiên liệu" htmlFor="v-fuel">
             <select id="v-fuel" className="input" value={fuelType} onChange={(e) => setFuelType(e.target.value as FuelType)}>
-              {FUEL_TYPES.map((f) => <option key={f} value={f}>{FUEL_TYPE_LABEL[f]}</option>)}
+              {!fuelType && <option value="">— chọn loại —</option>}
+              {fuelTypes.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}{f.archived ? ' (đang ẩn)' : ''}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label="Biển số" htmlFor="v-plate">

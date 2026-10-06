@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { FuelType, RecordKind, ServiceItem, Vehicle } from '../../domain/types'
-import { EXPENSE_CATEGORIES, fuelVerb } from '../../domain/labels'
+import { EXPENSE_CATEGORIES } from '../../domain/labels'
+import { pickerOptions, resolveFuelType, verbForUnit } from '../../domain/fuelTypes'
 import { todayISO } from '../../lib/format'
-import { patchSettings } from '../../db'
-import { useSettings } from '../../hooks/useAppData'
+import { useFuelTypes } from '../../hooks/useAppData'
 import {
   deleteExpense, deleteFuelEntry, deleteService,
   getExpense, getFuelEntry, getService,
-  saveExpense, saveFuelEntry, saveService,
+  saveExpense, saveFuelEntry, saveFuelType, saveService,
 } from '../../db/repo'
 import { Field } from '../../components/Field'
 import { MoneyInput } from '../../components/MoneyInput'
@@ -69,32 +69,36 @@ const blank = (fuel: FuelType): FormState => ({
 
 export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
   const editing = target !== null
-  const settings = useSettings()
+  const fuelTypes = useFuelTypes()
   const [kind, setKind] = useState<RecordKind>(target?.kind ?? 'fuel')
   const [form, setForm] = useState<FormState>(() => blank(vehicle.fuel_type))
+
   const [error, setError] = useState<string | null>(null)
   const [more, setMore] = useState(false)
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }))
 
+  const allTypes = fuelTypes ?? []
+  // Archived types stay out of the way, except the one this record already uses.
+  const types = pickerOptions(allTypes, form.fuel_type)
+  const rememberedPrice = (id: FuelType) => types.find((t) => t.id === id)?.price ?? null
+
   /**
-   * The price actually used. Until the user types one it mirrors the remembered price for
-   * the selected grade, so it still appears when settings resolve after the first render.
+   * The price actually used. Until the user types one it mirrors the price stored on the
+   * selected type, so it still appears when the table resolves after the first render.
    */
   const effectivePrice =
-    form.price_touched || editing
-      ? form.unit_price
-      : (settings.fuel_prices[form.fuel_type] ?? form.unit_price)
+    form.price_touched || editing ? form.unit_price : (rememberedPrice(form.fuel_type) ?? form.unit_price)
 
-  /** Switching grade swaps in that grade's remembered price. When a grade has none, the
+  /** Switching type swaps in that type's remembered price. When a type has none, the
    *  current figure is kept rather than wiped — losing what the user just typed is worse
    *  than offering a stale starting point they can edit. */
   const changeFuelType = (f: FuelType) =>
     setForm((prev) => ({
       ...prev,
       fuel_type: f,
-      unit_price: settings.fuel_prices[f] ?? effectivePrice,
+      unit_price: rememberedPrice(f) ?? effectivePrice,
       price_touched: true,
     }))
 
@@ -157,6 +161,8 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
       )
     if (kind === 'service' && form.items.length === 0)
       return setError('Chọn ít nhất một hạng mục bảo dưỡng.')
+    if (kind === 'fuel' && !form.fuel_type)
+      return setError('Chọn loại nhiên liệu.')
 
     const base = {
       vehicle_id: vehicle.id,
@@ -187,11 +193,10 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
         payment_method: null,
       })
 
-      // Remember the price per grade so the next fill starts from it.
-      if (effectivePrice != null && effectivePrice > 0) {
-        await patchSettings({
-          fuel_prices: { ...settings.fuel_prices, [form.fuel_type]: effectivePrice },
-        })
+      // Remember the price on the fuel type itself, so the next fill of it starts there.
+      const row = allTypes.find((t) => t.id === form.fuel_type)
+      if (row && effectivePrice != null && effectivePrice > 0 && row.price !== effectivePrice) {
+        await saveFuelType({ ...row, price: effectivePrice })
       }
     } else if (kind === 'service') {
       await saveService({ ...base, items: form.items, workshop: form.workshop.trim() || null })
@@ -211,7 +216,7 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
   }
 
   const TITLE: Record<RecordKind, string> = {
-    fuel: fuelVerb(form.fuel_type),
+    fuel: verbForUnit(resolveFuelType(form.fuel_type, allTypes).unit),
     service: 'Bảo dưỡng',
     expense: 'Chi phí khác',
   }
@@ -269,6 +274,7 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
 
           {kind === 'fuel' && (
             <FuelFields
+              fuelTypes={types}
               fuelType={form.fuel_type}
               unitPrice={effectivePrice}
               quantity={form.quantity}

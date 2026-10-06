@@ -1,4 +1,4 @@
-import type { FuelType, VehicleKind } from './types'
+import type { VehicleKind } from './types'
 
 export const VEHICLE_KIND_LABEL: Record<VehicleKind, string> = {
   car: 'Ô tô',
@@ -7,31 +7,6 @@ export const VEHICLE_KIND_LABEL: Record<VehicleKind, string> = {
   ev_motorcycle: 'Xe máy điện',
   truck: 'Xe tải',
 }
-
-export const FUEL_TYPE_LABEL: Record<FuelType, string> = {
-  ron95: 'Xăng RON 95',
-  e5ron92: 'Xăng E5 RON 92',
-  diesel: 'Dầu Diesel',
-  electric: 'Điện',
-  hybrid: 'Hybrid xăng-điện',
-}
-
-/** Compact form for the timeline badge, where the full name would not fit. */
-export const FUEL_TYPE_SHORT: Record<FuelType, string> = {
-  ron95: 'RON 95',
-  e5ron92: 'E5',
-  diesel: 'Diesel',
-  electric: 'Điện',
-  hybrid: 'Hybrid',
-}
-
-export const isElectric = (f: FuelType) => f === 'electric'
-
-/** "Đổ xăng" vs "Sạc điện" — the wording follows the vehicle, per docs/02-UIUX.md §8.
- *  A single hard-coded "Nạp nhiên liệu" for every case reads like machine translation. */
-export const fuelVerb = (f: FuelType) => (isElectric(f) ? 'Sạc điện' : 'Đổ xăng')
-export const quantityUnit = (f: FuelType) => (isElectric(f) ? 'kWh' : 'lít')
-export const priceUnit = (f: FuelType) => (isElectric(f) ? 'đ/kWh' : 'đ/lít')
 
 export const SERVICE_ITEMS = [
   'Thay dầu máy',
