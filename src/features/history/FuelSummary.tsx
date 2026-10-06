@@ -4,6 +4,7 @@ import type { Vehicle } from '../../domain/types'
 import { averageConsumption, forecastNextFill } from '../../domain/consumption'
 import { resolveFuelType, unitLabel } from '../../domain/fuelTypes'
 import { useFuelTypes } from '../../hooks/useAppData'
+import { listFuelTypes } from '../../db/repo'
 import { dateFull, dec1, dec2, km } from '../../lib/format'
 
 interface Props {
@@ -20,10 +21,15 @@ export function FuelSummary({ vehicle }: Props) {
   const fuelTypes = useFuelTypes()
   const data = useLiveQuery(
     async () => {
-      const fuel = await db.fuelEntries.where('vehicle_id').equals(vehicle.id).toArray()
+      const [fuel, types] = await Promise.all([
+        db.fuelEntries.where('vehicle_id').equals(vehicle.id).toArray(),
+        listFuelTypes(),
+      ])
+      const priceFor = (id: string | null) =>
+        types.find((t) => t.id === (id ?? vehicle.fuel_type))?.price ?? null
       return {
         count: fuel.length,
-        avg: averageConsumption(fuel, vehicle),
+        avg: averageConsumption(fuel, vehicle, priceFor),
         forecast: forecastNextFill(fuel),
       }
     },
@@ -53,6 +59,7 @@ export function FuelSummary({ vehicle }: Props) {
               {avg.exact
                 ? `đo giữa ${avg.basis} lần đổ đầy · ${km(avg.distanceKm)}`
                 : `ước tính · ${avg.basis} lần đổ · ${km(avg.distanceKm)}`}
+              {avg.usedFallbackPrice && ' · theo đơn giá hiện tại'}
             </span>
             {avg.outOfBand && (
               <span className="fsum__warn">

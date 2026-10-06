@@ -187,9 +187,19 @@ Có một khoảng tranh chấp nhỏ không thể tránh. **Phải tự viết 
     coi như đổ đầy *(lỗi của `hargata/lubelog`)*.
   - Lần đổ không đầy **sau** lần đổ đầy cuối cùng **không** được lọt vào trung bình tổng *(cũng lỗi LubeLog)*.
 
-### P4 — Báo cáo
-3 ô số lớn + cột theo tháng + đường tiêu thụ. Nhãn "ước tính" / "chưa đủ dữ liệu".
-✅ Xong khi: số khớp P3 và khớp workbook.
+### P4 — Báo cáo ✅ *(xong 06/10/2026)*
+
+3 ô số lớn + cơ cấu chi phí + cột chồng theo tháng + đường tiêu thụ.
+Nhãn "ước tính" / "chưa đủ dữ liệu" / "theo đơn giá hiện tại" hiện đúng nơi.
+
+> Biểu đồ vẽ bằng **SVG nội tuyến**, không dùng uPlot như dự kiến: hình cần vẽ chỉ là
+> hình chữ nhật và một đường gấp khúc, thư viện sẽ tốn hơn cả tính năng, và SVG nội tuyến
+> thừa hưởng được token thiết kế nên biểu đồ là một phần của hệ thống chứ không phải
+> widget cắm thêm. Mỗi biểu đồ kèm một bảng số ẩn cho trình đọc màn hình.
+
+✅ **Đã xong.** Số trên màn hình khớp workbook: Accent 86.139 đ/ngày · 2.399 đ/km ·
+8.700.000 đ · 3.626 km · 101 ngày; Honda Moto 7.044 đ/ngày · 620 đ/km · 317.000 đ.
+Mức tiêu thụ ra đúng 8,54 L/100km sau khi đặt đơn giá.
 
 ### P5 — PWA
 - Manifest: **`id` đặt tường minh ngay từ đầu** (bỏ trống thì mặc định bằng `start_url`;

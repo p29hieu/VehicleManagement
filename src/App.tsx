@@ -3,6 +3,7 @@ import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { EmptyState } from './components/EmptyState'
 import { TabBar } from './components/TabBar'
 import { HistoryScreen } from './features/history/HistoryScreen'
+import { ReportsScreen } from './features/reports/ReportsScreen'
 import { EntrySheet, type EntryTarget } from './features/entry/EntrySheet'
 import { VehicleSwitcher } from './features/vehicles/VehicleSwitcher'
 import { useActiveVehicle, useLatestOdometer, useTimeline, useVehicles } from './hooks/useAppData'
@@ -63,12 +64,15 @@ export default function App() {
           <Route
             path="/bao-cao"
             element={
-              <EmptyState
-                kind="report"
-                title="Chưa đủ dữ liệu"
-                body="Cần ít nhất 3 lần đổ nhiên liệu để tính được mức tiêu thụ và chi phí trung bình."
-                hint="Giai đoạn P3–P4."
-              />
+              hasVehicle ? (
+                <ReportsScreen vehicle={active} />
+              ) : (
+                <EmptyState
+                  kind="report"
+                  title="Chưa có phương tiện nào"
+                  body="Thêm một chiếc xe rồi quay lại, báo cáo sẽ có số liệu."
+                />
+              )
             }
           />
           <Route

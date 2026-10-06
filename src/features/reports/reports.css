@@ -1,0 +1,155 @@
+.reports { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 14px var(--space-gutter) 28px; }
+
+.reports__h2 { font-size: 0.95rem; font-weight: 800; letter-spacing: -0.01em; }
+.reports__note { font-size: 0.85rem; color: var(--c-ink-soft); padding: 4px 2px; text-wrap: pretty; }
+
+/* ── Three headline numbers ──────────────────────────────────────── */
+.stats3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  background: var(--c-line-soft);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  animation: rise var(--dur-slow) var(--ease-out) backwards;
+}
+@media (min-width: 520px) { .stats3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.stat {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  padding: 14px 15px;
+  background-image: var(--g-surface);
+  min-inline-size: 0;
+}
+.stat__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+.stat__value { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.stat__suffix { font-size: 0.78rem; color: var(--c-ink-soft); }
+.stat__basis { margin-block-start: 3px; font-size: 0.7rem; color: var(--c-ink-faint); text-wrap: pretty; }
+.stat__none { font-size: 0.95rem; font-weight: 600; color: var(--c-ink-soft); }
+.stat[data-warn] .stat__value { color: var(--c-danger); }
+
+/* ── Cost breakdown ──────────────────────────────────────────────── */
+.breakdown {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  background-image: var(--g-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--e-1);
+}
+
+.bkd {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "label value" "track pct";
+  align-items: center;
+  gap: 3px 10px;
+}
+.bkd__label { grid-area: label; font-size: 0.82rem; font-weight: 600; }
+.bkd__value { grid-area: value; font-size: 0.82rem; font-weight: 700; }
+.bkd__pct { grid-area: pct; font-size: 0.7rem; color: var(--c-ink-faint); }
+
+.bkd__track {
+  grid-area: track;
+  display: block;
+  block-size: 8px;
+  border-radius: 999px;
+  background: var(--c-surface-sunk);
+  overflow: hidden;
+}
+.bkd__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: 999px;
+  /* Grows from zero on mount, which reads as the number being measured. */
+  animation: bkd-grow var(--dur-slow) var(--ease-out) backwards;
+}
+@keyframes bkd-grow { from { transform: scaleX(0); transform-origin: left; } to { transform: none; } }
+
+/* ── Charts ──────────────────────────────────────────────────────── */
+.chart {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  padding: 16px 14px 14px;
+  background-image: var(--g-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--e-1);
+  animation: rise var(--dur-slow) var(--ease-out) backwards;
+}
+
+.chart__caption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.chart__tag {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--c-on-fuel);
+  background-image: var(--g-fuel);
+}
+
+.chart__svg { inline-size: 100%; block-size: auto; overflow: visible; }
+.chart__axis { stroke: var(--c-line); stroke-width: 1; }
+.chart__xlabel, .chart__ylabel {
+  font-family: var(--f-num);
+  font-size: 9px;
+  fill: var(--c-ink-faint);
+  text-anchor: middle;
+}
+.chart__ylabel { text-anchor: start; }
+
+.chart__line {
+  fill: none;
+  stroke: var(--c-brand);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* A dashed stroke says "estimate" without needing a reading of the caption. */
+.chart__line.is-estimate { stroke: var(--c-fuel-deep); stroke-dasharray: 5 4; }
+.chart__dot { fill: var(--c-surface); stroke: var(--c-brand); stroke-width: 2; }
+.chart__line.is-estimate ~ g .chart__dot { stroke: var(--c-fuel-deep); }
+
+.chart__legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.72rem;
+  color: var(--c-ink-soft);
+}
+.chart__legend li { display: inline-flex; align-items: center; gap: 5px; }
+.chart__swatch { inline-size: 10px; block-size: 10px; border-radius: 3px; }
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

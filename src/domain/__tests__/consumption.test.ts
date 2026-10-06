@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   aggregateEstimate,
+  consumptionSeries,
   averageConsumption,
   consumptionByEntry,
   forecastNextFill,
@@ -202,5 +203,69 @@ describe('forecastNextFill', () => {
     expect(f.dueOdometerKm).toBe(1900)
     expect(f.dueDate).toBe('2026-01-31')           // 300 km / 30 km per day = 10 days
     expect(f.daysRemaining).toBe(10)
+  })
+})
+
+describe('consumptionSeries', () => {
+  it('emits one point per measured segment when full tanks exist', () => {
+    const entries = [
+      fill({ odometer_km: 1000, quantity: 40, date: '2026-01-01' }),
+      fill({ odometer_km: 1500, quantity: 50, date: '2026-01-10' }),
+      fill({ odometer_km: 2000, quantity: 45, date: '2026-01-20' }),
+    ]
+    const pts = consumptionSeries(entries, car)
+    expect(pts).toHaveLength(2)
+    expect(pts.every((p) => p.exact)).toBe(true)
+    expect(pts[0]).toMatchObject({ date: '2026-01-10', odometerKm: 1500 })
+    expect(pts[0]!.l100).toBeCloseTo(10, 6)
+  })
+
+  it('without full tanks, shows the estimate settling instead of a single point', () => {
+    const entries = [
+      fill({ odometer_km: 1000, quantity: 10, is_full_tank: false, date: '2026-01-01' }),
+      fill({ odometer_km: 1100, quantity: 10, is_full_tank: false, date: '2026-01-02' }),
+      fill({ odometer_km: 1300, quantity: 10, is_full_tank: false, date: '2026-01-03' }),
+    ]
+    const pts = consumptionSeries(entries, car)
+    expect(pts).toHaveLength(2)
+    expect(pts.every((p) => !p.exact)).toBe(true)
+    expect(pts[0]!.l100).toBeCloseTo(10, 6)      // 10 L over 100 km
+    expect(pts[1]!.l100).toBeCloseTo(6.667, 2)   // 20 L over 300 km
+  })
+})
+
+describe('price fallback', () => {
+  const noPrice = (odo: number, total: number, date: string) =>
+    fill({ odometer_km: odo, total_amount: total, is_full_tank: false, date, fuel_type: 'ron95' })
+
+  it('yields nothing when neither the entry nor the type has a price', () => {
+    const entries = [noPrice(1000, 500_000, '2026-01-01'), noPrice(1500, 500_000, '2026-01-02')]
+    expect(averageConsumption(entries, car)).toBeNull()
+  })
+
+  it("uses the type's current price when the entry recorded none, and says so", () => {
+    const entries = [noPrice(1000, 500_000, '2026-01-01'), noPrice(1500, 500_000, '2026-01-02')]
+    const r = averageConsumption(entries, car, () => 21_000)!
+    expect(r.l100).toBeCloseTo((500_000 / 21_000 / 500) * 100, 6)
+    expect(r.usedFallbackPrice).toBe(true)
+  })
+
+  it("does not claim a fallback when every entry carried its own price", () => {
+    const entries = [
+      fill({ odometer_km: 1000, total_amount: 500_000, unit_price: 20_000, is_full_tank: false, date: '2026-01-01' }),
+      fill({ odometer_km: 1500, total_amount: 500_000, unit_price: 20_000, is_full_tank: false, date: '2026-01-02' }),
+    ]
+    const r = averageConsumption(entries, car, () => 21_000)!
+    expect(r.usedFallbackPrice).toBe(false)
+    expect(r.l100).toBeCloseTo((500_000 / 20_000 / 500) * 100, 6)   // the entry's own price wins
+  })
+
+  it('reproduces 8,54 L/100km on the real Accent log via the fallback alone', () => {
+    const dates = ['07-15','07-21','07-25','07-31','08-05','08-06','08-11','08-14','08-25','08-31','09-05','09-12','09-16','09-21']
+    const odos = [65623,65975,66240,66528,66751,67029,67328,67659,67874,68084,68376,68691,68950,69249]
+    const log = odos.map((o, i) => noPrice(o, 500_000, `2026-${dates[i]}`))
+    const r = averageConsumption(log, car, () => 21_000)!
+    expect(r.l100).toBeCloseTo(8.54, 2)
+    expect(r.usedFallbackPrice).toBe(true)
   })
 })

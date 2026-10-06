@@ -14,13 +14,31 @@ import type { FuelEntry, Vehicle } from './types'
 const odoOf = (e: FuelEntry): number | null =>
   e.odometer_km != null && e.odometer_km > 0 ? e.odometer_km : null
 
-/** Quantity as entered, or derived from money and unit price when both are known. */
-export const litersOf = (e: FuelEntry): number | null => {
+/**
+ * Looks up the current price of a fuel type, used only as a last resort — see below.
+ */
+export type PriceLookup = (fuelTypeId: string | null) => number | null
+
+/**
+ * Quantity as entered, or derived from money and unit price.
+ *
+ * `fallbackPrice` is the type's CURRENT price, applied only when the entry recorded no
+ * price of its own. That is an assumption — a July fill priced at today's rate — so every
+ * result built on it is marked, and the UI says which price it used. Without it, a log
+ * imported with amounts but no litres (which is what Drivvo exports look like) could never
+ * produce a consumption figure at all.
+ */
+export const litersOf = (e: FuelEntry, fallbackPrice: number | null = null): number | null => {
   if (e.quantity != null && e.quantity > 0) return e.quantity
-  if (e.unit_price != null && e.unit_price > 0 && e.total_amount != null && e.total_amount > 0)
-    return e.total_amount / e.unit_price
+  const price = e.unit_price != null && e.unit_price > 0 ? e.unit_price : fallbackPrice
+  if (price != null && price > 0 && e.total_amount != null && e.total_amount > 0)
+    return e.total_amount / price
   return null
 }
+
+/** True when this entry would need the type's current price to yield a quantity. */
+const needsFallback = (e: FuelEntry) =>
+  (e.quantity == null || e.quantity <= 0) && (e.unit_price == null || e.unit_price <= 0)
 
 /**
  * Chronological order, with the odometer as the tiebreak.
@@ -51,7 +69,10 @@ export interface Segment {
  * right — the opening full fill is excluded (it was burnt by the previous interval), the
  * closing full fill is included, and every partial in between is included.
  */
-export function fullTankSegments(entries: readonly FuelEntry[]): Segment[] {
+export function fullTankSegments(
+  entries: readonly FuelEntry[],
+  priceFor: PriceLookup = () => null,
+): Segment[] {
   const sorted = [...entries].sort(byDateThenOdometer)
   const out: Segment[] = []
   let anchorOdo: number | null = null
@@ -68,7 +89,7 @@ export function fullTankSegments(entries: readonly FuelEntry[]): Segment[] {
       continue
     }
 
-    const qty = litersOf(e)
+    const qty = litersOf(e, priceFor(e.fuel_type))
     if (qty != null) liters += qty
 
     if (!e.is_full_tank) continue
@@ -109,6 +130,8 @@ export interface ConsumptionResult {
   distanceKm: number
   /** Outside the vehicle class's plausible range: shown, but flagged, never averaged in (§3.3). */
   outOfBand: boolean
+  /** The figure leant on the fuel type's current price for at least one fill. */
+  usedFallbackPrice: boolean
 }
 
 /**
@@ -119,7 +142,10 @@ export interface ConsumptionResult {
  * error is the difference in tank level between the first and last fill spread over the
  * whole distance, so it shrinks as the log grows.
  */
-export function aggregateEstimate(entries: readonly FuelEntry[]): ConsumptionResult | null {
+export function aggregateEstimate(
+  entries: readonly FuelEntry[],
+  priceFor: PriceLookup = () => null,
+): ConsumptionResult | null {
   const withOdo = [...entries].filter((e) => odoOf(e) != null).sort(byDateThenOdometer)
   if (withOdo.length < 2) return null
 
@@ -128,11 +154,14 @@ export function aggregateEstimate(entries: readonly FuelEntry[]): ConsumptionRes
   let liters = 0
   let distance = 0
   let counted = 0
+  let usedFallback = false
   for (let i = 1; i < withOdo.length; i++) {
     const prev = withOdo[i - 1]!
     const cur = withOdo[i]!
-    const q = litersOf(cur)
+    const fallback = priceFor(cur.fuel_type)
+    const q = litersOf(cur, fallback)
     if (q == null) continue
+    if (needsFallback(cur)) usedFallback = true
     const d = odoOf(cur)! - odoOf(prev)!
     if (d <= 0) continue
     liters += q
@@ -141,26 +170,31 @@ export function aggregateEstimate(entries: readonly FuelEntry[]): ConsumptionRes
   }
   if (liters <= 0 || distance <= 0) return null
 
-  return { l100: (liters / distance) * 100, exact: false, basis: counted, distanceKm: distance, outOfBand: false }
+  return {
+    l100: (liters / distance) * 100, exact: false, basis: counted,
+    distanceKm: distance, outOfBand: false, usedFallbackPrice: usedFallback,
+  }
 }
 
 /** Best available figure for a vehicle: exact when full tanks exist, else the estimate. */
 export function averageConsumption(
   entries: readonly FuelEntry[],
   vehicle: Vehicle,
+  priceFor: PriceLookup = () => null,
 ): ConsumptionResult | null {
   // Distance-weighted, never the mean of per-tank ratios — that would weigh a 100 km tank
   // the same as a 400 km one (§3.2).
-  const usable = fullTankSegments(entries).filter((s) => inBand(vehicle, s.l100))
+  const usable = fullTankSegments(entries, priceFor).filter((s) => inBand(vehicle, s.l100))
   if (usable.length) {
     const distance = usable.reduce((a, s) => a + s.distance, 0)
     const liters = usable.reduce((a, s) => a + s.liters, 0)
     return {
       l100: (liters / distance) * 100, exact: true, basis: usable.length,
       distanceKm: distance, outOfBand: false,
+      usedFallbackPrice: entries.some((e) => needsFallback(e) && priceFor(e.fuel_type) != null),
     }
   }
-  const est = aggregateEstimate(entries)
+  const est = aggregateEstimate(entries, priceFor)
   // An implausible estimate is still reported, flagged, rather than hidden — a wrong
   // odometer is something the user needs to see, not something to quietly swallow.
   return est ? { ...est, outOfBand: !inBand(vehicle, est.l100) } : null
@@ -170,16 +204,20 @@ export function averageConsumption(
 export function consumptionByEntry(
   entries: readonly FuelEntry[],
   vehicle: Vehicle,
+  priceFor: PriceLookup = () => null,
 ): Map<string, ConsumptionResult> {
   const map = new Map<string, ConsumptionResult>()
-  for (const s of fullTankSegments(entries)) {
+  for (const s of fullTankSegments(entries, priceFor)) {
     if (inBand(vehicle, s.l100))
-      map.set(s.entryId, { l100: s.l100, exact: true, basis: 1, distanceKm: s.distance, outOfBand: false })
+      map.set(s.entryId, {
+        l100: s.l100, exact: true, basis: 1, distanceKm: s.distance,
+        outOfBand: false, usedFallbackPrice: false,
+      })
   }
   if (map.size === 0) {
     // No full-tank markers anywhere: every row carries the same vehicle-level estimate,
     // which is the only defensible figure for this data (§3.5).
-    const est = aggregateEstimate(entries)
+    const est = aggregateEstimate(entries, priceFor)
     if (est) {
       const flagged = { ...est, outOfBand: !inBand(vehicle, est.l100) }
       for (const e of entries) if (odoOf(e) != null) map.set(e.id, flagged)
@@ -243,4 +281,47 @@ export function forecastNextFill(
     kmPerDay,
     basis: sorted.length,
   }
+}
+
+export interface ConsumptionPoint {
+  date: string
+  odometerKm: number
+  l100: number
+  exact: boolean
+}
+
+/**
+ * A series to plot over time.
+ *
+ * With full tanks it is one point per measured segment. Without them a single aggregate
+ * number would be a one-point "line", so instead each fill contributes the estimate as it
+ * stood up to that point — which shows the estimate settling as the log grows, and is
+ * labelled as an estimate rather than dressed up as a measurement.
+ */
+export function consumptionSeries(
+  entries: readonly FuelEntry[],
+  vehicle: Vehicle,
+  priceFor: PriceLookup = () => null,
+): ConsumptionPoint[] {
+  const sorted = [...entries].sort(byDateThenOdometer)
+  const segs = fullTankSegments(entries, priceFor).filter((s) => inBand(vehicle, s.l100))
+
+  if (segs.length) {
+    const dateOf = new Map(sorted.map((e) => [e.id, e.date]))
+    return segs.map((s) => ({
+      date: dateOf.get(s.entryId) ?? '',
+      odometerKm: s.toOdo,
+      l100: s.l100,
+      exact: true,
+    }))
+  }
+
+  const out: ConsumptionPoint[] = []
+  for (let i = 2; i <= sorted.length; i++) {
+    const est = aggregateEstimate(sorted.slice(0, i), priceFor)
+    const last = sorted[i - 1]!
+    const odo = odoOf(last)
+    if (est && odo != null) out.push({ date: last.date, odometerKm: odo, l100: est.l100, exact: false })
+  }
+  return out
 }

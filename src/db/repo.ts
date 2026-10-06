@@ -156,7 +156,9 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
   ])
 
   // One pass over the whole fuel log; each row then reads its own figure out of the map.
-  const consumption = vehicle ? consumptionByEntry(fuel, vehicle) : new Map()
+  const priceFor = (id: string | null) =>
+    fuelTypes.find((t) => t.id === (id ?? vehicle?.fuel_type))?.price ?? null
+  const consumption = vehicle ? consumptionByEntry(fuel, vehicle, priceFor) : new Map()
 
   const items: TimelineItem[] = [
     ...fuel.map<TimelineItem>((e) => {
