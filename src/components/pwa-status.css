@@ -25,39 +25,10 @@
 }
 @keyframes pwabar-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-.pwabar--update,
+/* The "ready" bar is the only branded one left. The update bar and its Tải lại / dismiss
+   buttons are gone: updates now apply themselves, so there is nothing to tap. */
 .pwabar--ready {
   color: var(--c-on-brand);
   background-image: var(--g-brand);
 }
-.pwabar--update span:first-child,
 .pwabar--ready span { flex: 1; }
-
-.pwabar__btn {
-  flex: none;
-  min-block-size: 32px;
-  padding: 5px 14px;
-  font: inherit;
-  font-weight: 700;
-  color: var(--c-brand);
-  background: var(--c-surface);
-  border: 0;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-.pwabar__btn:active { transform: scale(0.95); }
-
-.pwabar__close {
-  flex: none;
-  inline-size: 32px;
-  block-size: 32px;
-  font-size: 0.85rem;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: 50%;
-  cursor: pointer;
-  opacity: 0.75;
-}
-.pwabar__close:hover { opacity: 1; background: oklch(100% 0 0 / 0.16); }

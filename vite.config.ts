@@ -12,11 +12,18 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // 'prompt' rather than 'autoUpdate': GitHub Pages serves index.html with a ten-minute
-      // max-age, so a silent swap can leave a stale document pointing at chunks the new
-      // service worker has already cleaned up. Letting the user trigger the reload means
-      // the new document and its assets activate together.
-      registerType: 'prompt',
+      // Was 'prompt', on the reasoning that GitHub Pages' ten-minute max-age could leave a
+      // stale document pointing at chunks a new worker had already purged.
+      //
+      // That risk is real but small, and it was the wrong trade: in practice 'prompt' kept
+      // three consecutive fixes from reaching the user at all. They sat on a build whose
+      // layout could not be scrolled, being told to reload via a bar they never noticed.
+      // A failed lazy import self-heals on the next load; an undeliverable fix does not.
+      //
+      // The precache also makes the swap safer than that comment assumed: index.html and
+      // every chunk are cached as one revisioned generation, and navigateFallback serves
+      // that same generation, so a controlled client stays self-consistent.
+      registerType: 'autoUpdate',
       // The React hook in PwaStatus.tsx does the registering; the injected script would
       // register a second time.
       injectRegister: null,

@@ -11,12 +11,32 @@ import './pwa-status.css'
  * so the document and its chunks can briefly disagree. A reload the user triggers makes
  * them agree.
  */
+/** How often a long-lived tab asks whether a newer build exists. Someone who leaves the
+ *  app open for days should not be the last to receive a fix. */
+const UPDATE_CHECK_MS = 60 * 60 * 1000
+
 export function PwaStatus() {
   const {
     offlineReady: [offlineReady, setOfflineReady],
-    needRefresh: [needRefresh, setNeedRefresh],
+    needRefresh: [needRefresh],
     updateServiceWorker,
-  } = useRegisterSW()
+  } = useRegisterSW({
+    onRegisteredSW(_url, registration) {
+      if (!registration) return
+      setInterval(() => void registration.update(), UPDATE_CHECK_MS)
+    },
+  })
+
+  /**
+   * Apply the update instead of offering it.
+   *
+   * `autoUpdate` already makes the new worker skipWaiting, so this is belt and braces —
+   * but the belt is exactly what was missing. Under the previous prompt-only strategy a
+   * fix sat behind a bar the user never tapped, and three releases running never arrived.
+   */
+  useEffect(() => {
+    if (needRefresh) void updateServiceWorker(true)
+  }, [needRefresh, updateServiceWorker])
 
   const [online, setOnline] = useState(() => navigator.onLine)
 
@@ -47,24 +67,8 @@ export function PwaStatus() {
     )
   }
 
-  if (needRefresh) {
-    return (
-      <div className="pwabar pwabar--update" role="status">
-        <span>Đã có bản mới</span>
-        <button type="button" className="pwabar__btn" onClick={() => void updateServiceWorker(true)}>
-          Tải lại
-        </button>
-        <button
-          type="button"
-          className="pwabar__close"
-          aria-label="Để sau"
-          onClick={() => setNeedRefresh(false)}
-        >
-          ✕
-        </button>
-      </div>
-    )
-  }
+  // No "an update is waiting" bar any more: the effect above applies it. A bar the user
+  // has to notice and tap is precisely what stopped three fixes from landing.
 
   if (offlineReady) {
     return (
