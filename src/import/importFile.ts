@@ -1,4 +1,4 @@
-import { clearAllData, db, patchSettings } from '../db'
+import { clearAllData, db, forgetTombstones, patchSettings } from '../db'
 import { importFileSchema, type ImportFile } from '../domain/schema'
 import { DEFAULT_FUEL_TYPES, type FuelTypeRow } from '../domain/fuelTypes'
 import { nfc, now } from '../lib/id'
@@ -123,7 +123,7 @@ export async function runImport(raw: unknown, opts: ImportOptions): Promise<Impo
   const ts = now()
   await db.transaction(
     'rw',
-    [db.vehicles, db.fuelEntries, db.services, db.expenses, db.maintenanceRules, db.reminders],
+    [db.vehicles, db.fuelEntries, db.services, db.expenses, db.maintenanceRules, db.reminders, db.tombstones],
     async () => {
       await db.vehicles.bulkPut(file.vehicles.map((v) => ({ ...v, name: nfc(v.name), updated_at: ts })))
       await db.fuelEntries.bulkPut(
@@ -137,9 +137,27 @@ export async function runImport(raw: unknown, opts: ImportOptions): Promise<Impo
         })),
       )
       await db.expenses.bulkPut(file.expenses.map((x) => ({ ...x, updated_at: ts })))
+
+      // A replace-mode load ran clearAllData(), which tombstoned every id it removed.
+      // Any id written back above is alive again and must not keep its tombstone: both
+      // carry this same instant, and the merge breaks that tie in favour of the delete.
+      await Promise.all([
+        forgetTombstones('vehicles', file.vehicles.map((v) => v.id)),
+        forgetTombstones('fuelEntries', file.fuel_entries.map((e) => e.id)),
+        forgetTombstones('services', file.services.map((r) => r.id)),
+        forgetTombstones('expenses', file.expenses.map((x) => x.id)),
+      ])
       if (opts.includeSuggestions) {
-        await db.maintenanceRules.bulkPut(file.suggested_maintenance_rules)
-        await db.reminders.bulkPut(file.suggested_reminders)
+        // Both tables gained updated_at in Dexie v4; the import file predates it, so the
+        // import time is the honest answer for "when did this row last change".
+        await db.maintenanceRules.bulkPut(
+          file.suggested_maintenance_rules.map((r) => ({ ...r, updated_at: ts })),
+        )
+        await db.reminders.bulkPut(file.suggested_reminders.map((r) => ({ ...r, updated_at: ts })))
+        await Promise.all([
+          forgetTombstones('maintenanceRules', file.suggested_maintenance_rules.map((r) => r.id)),
+          forgetTombstones('reminders', file.suggested_reminders.map((r) => r.id)),
+        ])
       }
     },
   )
@@ -161,7 +179,8 @@ export async function runImport(raw: unknown, opts: ImportOptions): Promise<Impo
     const existing = known.get(id)
     const price = prices[id] ?? null
     if (existing) {
-      if (price != null && existing.price !== price) toPut.push({ ...existing, price })
+      if (price != null && existing.price !== price)
+        toPut.push({ ...existing, price, updated_at: now() })
       continue
     }
     const builtin = DEFAULT_FUEL_TYPES.find((d) => d.id === id)
@@ -169,7 +188,17 @@ export async function runImport(raw: unknown, opts: ImportOptions): Promise<Impo
     toPut.push(
       builtin
         ? { ...builtin, price: price ?? builtin.price }
-        : { id, name: id, short: id.slice(0, 8), unit: 'liter', price, sort: nextSort, archived: false, builtin: false },
+        : {
+            id,
+            name: id,
+            short: id.slice(0, 8),
+            unit: 'liter',
+            price,
+            sort: nextSort,
+            archived: false,
+            builtin: false,
+            updated_at: now(),
+          },
     )
   }
   if (toPut.length) await db.fuelTypes.bulkPut(toPut)

@@ -246,13 +246,36 @@ Ba quyết định lệch so với kế hoạch ban đầu, mỗi cái vì một
   3 bản ghi bảo trì và các chỉ số khớp số vàng ở P3; (b) xuất ra rồi nhập lại, dữ liệu không đổi.
 
 ### P7 — Đồng bộ Google Drive
-- GIS token client. Scope: `openid email profile` + `drive.appdata` + `drive.file`.
+- GIS token client. Scope: ~~`openid email profile` + `drive.appdata` + `drive.file`~~ →
+  **chỉ `drive.appdata`**. Hai cái kia không cần: app không bao giờ chạm file nào ngoài
+  thư mục riêng của nó, và tên tài khoản thì popup chọn tài khoản đã cho người dùng thấy.
 - Cloud Console: **Authorized JavaScript origin = `https://<user>.github.io`**, không có redirect URI.
-- Đồng bộ gắn với nút bấm; hoà trộn theo `version` như §4.
+- Đồng bộ gắn với nút bấm; ~~hoà trộn theo `version` như §4~~ — **§4 là "Chi phí", tham
+  chiếu này sai**: thuật toán hoà trộn chưa từng được thiết kế ở đâu cả. Đã thiết kế và
+  ghi lại ở `05-SYNC.md` §2: LWW theo từng bản ghi + tombstone, mọi luật phá hoà đối xứng.
 - ✅ Xong khi: 2 thiết bị sửa offline khác nhau → online lại → không mất bản ghi nào.
 - ⚠️ **Test sớm trên iPhone thật đã cài PWA.** Không có nguồn chính thức nào nói popup
   `initTokenClient` hoạt động ra sao bên trong PWA standalone trên iOS; có báo cáo cộng đồng
   rằng luồng này thoát ra tab Safari. Chuẩn bị sẵn đường lui (`navigator.standalone`).
+
+✅ **Đã xong phần code, 2026-10-07.** `SyncBackend` + merge engine + `DriveBackend`, 34 test.
+
+Ba lỗ hổng chặn sync đã phải vá trước khi viết được dòng đồng bộ nào:
+
+| Vấn đề | Hậu quả nếu bỏ qua |
+|---|---|
+| Xoá cứng, không tombstone | Xoá trên máy A → máy B sync xong **hồi sinh** bản ghi |
+| `fuelTypes`/`maintenanceRules`/`reminders` không có `updated_at` | Không merge theo bản ghi được |
+| Tham chiếu "§4" trong kế hoạch trỏ sai chỗ | Thuật toán merge thực ra chưa từng được thiết kế |
+
+Dexie **v4**: hai bảng mới (`tombstones` khoá kép `[table+id]`, `syncState`) và backfill
+`updated_at` bằng **hằng số cố định** `PRE_SYNC_EPOCH`, không phải `now()` — mọi máy
+backfill ra cùng giá trị nên merge rơi vào nhánh phá hoà tất định thay vì để máy nâng cấp
+sau thắng tuỳ tiện.
+
+⚠️ **Chưa chạy thật với Google.** Cần OAuth client ID của chủ repo (`docs/05-SYNC.md` §4);
+tới lúc đó panel hiển thị "chưa bật". Phần đã chứng minh được là merge/engine/HTTP qua
+test; phần chưa chứng minh được là popup GIS trong PWA standalone trên iOS.
 
 ### P8 — Nhắc nhở
 - Mô hình `maintenance_rules` / `reminders` tách đôi.

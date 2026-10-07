@@ -100,7 +100,11 @@ export const reminderSchema = z.object({
 })
 
 /** The canonical interchange format — docs/03-DATA-MODEL.md §7.2.
- *  The same shape serves import, export and the Drive appDataFolder state.json. */
+ *
+ *  Import and export only. It does NOT serve the Drive appDataFolder blob, which is
+ *  `vehicle-management/sync` in sync/types.ts: this shape has no tombstones, no fuelTypes
+ *  table, a partial settings object, and `suggested_*` keys that exist to tell the user's
+ *  own data apart from what the app proposed — a distinction sync would destroy. */
 export const importFileSchema = z.object({
   format: z.literal('vehicle-management/import'),
   version: z.literal(1),

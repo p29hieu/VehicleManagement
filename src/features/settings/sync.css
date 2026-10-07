@@ -1,0 +1,79 @@
+/* Sync panel. Shares .panel / .panel__title / .panel__hint with settings.css and the
+   .btn family with styles/controls.css — only what is specific to sync lives here. */
+
+.sync__state {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
+  margin: 12px 0 14px;
+  background: var(--c-line-soft);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.sync__state > div {
+  display: grid;
+  gap: 3px;
+  padding: 11px 13px;
+  background-image: var(--g-surface);
+  min-inline-size: 0;
+}
+
+.sync__state dt {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.sync__state dd {
+  margin: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync__ok { color: var(--c-ok); }
+
+.sync__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sync__result {
+  display: grid;
+  gap: 2px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  border-inline-start: 3px solid transparent;
+  animation: rise var(--dur) var(--ease-out);
+}
+
+.sync__result--ok {
+  background: color-mix(in oklab, var(--c-ok) 12%, transparent);
+  border-inline-start-color: var(--c-ok);
+}
+
+.sync__result--error {
+  background: color-mix(in oklab, var(--c-danger) 12%, transparent);
+  border-inline-start-color: var(--c-danger);
+}
+
+.sync__detail {
+  color: var(--c-ink-soft);
+  text-wrap: pretty;
+}
+
+/* The hourly-token caveat is a real limitation, not fine print to bury — but it is also
+   not the first thing to read, so it sits last and quiet. */
+.sync__caveat {
+  margin-block-start: 14px;
+  padding-block-start: 10px;
+  border-block-start: 1px solid var(--c-line-soft);
+}

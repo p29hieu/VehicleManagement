@@ -7,6 +7,7 @@ import { FuelTypeSheet } from './FuelTypeSheet'
 import { useCounts, useFuelTypes, useVehicles } from '../../hooks/useAppData'
 import { VehicleSheet } from '../vehicles/VehicleSheet'
 import { ImportPanel } from './ImportPanel'
+import { SyncPanel } from './SyncPanel'
 import './settings.css'
 
 export function SettingsScreen() {
@@ -82,12 +83,14 @@ export function SettingsScreen() {
 
       <ImportPanel />
 
+      <SyncPanel />
+
       <section className="panel">
         <h2 className="panel__title">Dữ liệu của bạn</h2>
         <p className="panel__hint">
           Mọi thứ nằm trong IndexedDB <code>{DB_NAME}</code> ngay trên thiết bị này.
-          Không có máy chủ nào giữ bản sao. Đồng bộ Google Drive sẽ thêm ở giai đoạn sau,
-          và vẫn là tuỳ chọn.
+          Không có máy chủ nào của tôi giữ bản sao. Nếu bạn bật đồng bộ ở trên, một bản sao
+          nữa nằm trong Drive của chính bạn — vẫn là tuỳ chọn, và tắt lúc nào cũng được.
         </p>
         {counts && (
           <ul className="stats">
@@ -101,6 +104,10 @@ export function SettingsScreen() {
 
       <section className="panel panel--danger">
         <h2 className="panel__title">Vùng nguy hiểm</h2>
+        <p className="panel__hint">
+          Xoá cả trên Drive nếu đang bật đồng bộ: thao tác này ghi lại dấu xoá cho từng bản
+          ghi, nên lần đồng bộ sau sẽ xoá chúng trên mọi thiết bị khác luôn.
+        </p>
         <button type="button" className="btn btn--danger" onClick={() => void wipe()}>
           Xoá toàn bộ dữ liệu
         </button>

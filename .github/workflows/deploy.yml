@@ -33,6 +33,13 @@ jobs:
       # Also writes dist/404.html, which is how GitHub Pages serves deep links
       # on a cold load before the service worker takes over. See docs/04-RESEARCH.md §6.
       - run: npm run build
+        env:
+          # Not actually a secret — an OAuth client id for a browser app ships inside the
+          # bundle and is public by construction. It lives in Actions secrets only so it
+          # is not committed. What protects it is the Authorized JavaScript origins list
+          # in Google Cloud Console. Left unset the build still succeeds and the sync
+          # panel simply reports that sync is off. See docs/05-SYNC.md.
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 
       - name: Verify Pages artefacts
         run: |

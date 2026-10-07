@@ -1,3 +1,5 @@
+import { PRE_SYNC_EPOCH } from '../lib/id'
+
 /**
  * Fuel types are user data, not a fixed enum.
  *
@@ -21,13 +23,18 @@ export interface FuelTypeRow {
   archived: boolean
   /** Shipped by default. Only affects the hint shown on delete, never the rules. */
   builtin: boolean
+  /** Added in Dexie v4. Fuel types are user data and therefore sync, and a per-row merge
+   *  needs a per-row timestamp to order on — see sync/merge.ts. */
+  updated_at: string
 }
 
+/** The built-ins all carry PRE_SYNC_EPOCH so two devices seeding them independently write
+ *  byte-identical rows, leaving the merge with nothing to resolve. */
 export const DEFAULT_FUEL_TYPES: readonly FuelTypeRow[] = [
-  { id: 'ron95', name: 'Xăng RON 95', short: 'RON 95', unit: 'liter', price: null, sort: 10, archived: false, builtin: true },
-  { id: 'e5ron92', name: 'Xăng E5 RON 92', short: 'E5', unit: 'liter', price: null, sort: 20, archived: false, builtin: true },
-  { id: 'diesel', name: 'Dầu Diesel', short: 'Diesel', unit: 'liter', price: null, sort: 30, archived: false, builtin: true },
-  { id: 'electric', name: 'Điện', short: 'Điện', unit: 'kwh', price: null, sort: 40, archived: false, builtin: true },
+  { id: 'ron95', name: 'Xăng RON 95', short: 'RON 95', unit: 'liter', price: null, sort: 10, archived: false, builtin: true, updated_at: PRE_SYNC_EPOCH },
+  { id: 'e5ron92', name: 'Xăng E5 RON 92', short: 'E5', unit: 'liter', price: null, sort: 20, archived: false, builtin: true, updated_at: PRE_SYNC_EPOCH },
+  { id: 'diesel', name: 'Dầu Diesel', short: 'Diesel', unit: 'liter', price: null, sort: 30, archived: false, builtin: true, updated_at: PRE_SYNC_EPOCH },
+  { id: 'electric', name: 'Điện', short: 'Điện', unit: 'kwh', price: null, sort: 40, archived: false, builtin: true, updated_at: PRE_SYNC_EPOCH },
 ]
 
 export const unitLabel = (u: FuelUnit) => (u === 'kwh' ? 'kWh' : 'lít')
@@ -49,6 +56,8 @@ export const unknownFuelType = (id: string): FuelTypeRow => ({
   sort: 9999,
   archived: true,
   builtin: false,
+  // Never persisted — this is a placeholder rendered for a type the user has deleted.
+  updated_at: PRE_SYNC_EPOCH,
 })
 
 export const resolveFuelType = (

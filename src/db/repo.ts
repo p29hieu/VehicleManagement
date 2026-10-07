@@ -34,12 +34,42 @@ export async function saveVehicle(v: New<Vehicle>): Promise<string> {
   return row.id
 }
 
+/**
+ * Remembers that a row is gone.
+ *
+ * Always written in the same transaction as the delete itself. A delete that is not
+ * remembered is indistinguishable from "this device has not seen that row yet", so the
+ * next sync treats the other device's copy as news and brings the row back.
+ */
+async function tombstone(table: string, ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return
+  const deleted_at = now()
+  await db.tombstones.bulkPut(ids.map((id) => ({ table, id, deleted_at })))
+}
+
 /** Removing a vehicle removes everything that references it; nothing is left orphaned. */
 export async function deleteVehicle(id: string): Promise<void> {
   await db.transaction(
     'rw',
-    [db.vehicles, db.fuelEntries, db.services, db.expenses, db.maintenanceRules, db.reminders],
+    [
+      db.vehicles,
+      db.fuelEntries,
+      db.services,
+      db.expenses,
+      db.maintenanceRules,
+      db.reminders,
+      db.tombstones,
+    ],
     async () => {
+      // Read the ids before the rows go, or there is nothing left to tombstone.
+      const [fuel, services, expenses, rules, reminders] = await Promise.all([
+        db.fuelEntries.where('vehicle_id').equals(id).primaryKeys(),
+        db.services.where('vehicle_id').equals(id).primaryKeys(),
+        db.expenses.where('vehicle_id').equals(id).primaryKeys(),
+        db.maintenanceRules.where('vehicle_id').equals(id).primaryKeys(),
+        db.reminders.where('vehicle_id').equals(id).primaryKeys(),
+      ])
+
       await Promise.all([
         db.vehicles.delete(id),
         db.fuelEntries.where('vehicle_id').equals(id).delete(),
@@ -47,6 +77,15 @@ export async function deleteVehicle(id: string): Promise<void> {
         db.expenses.where('vehicle_id').equals(id).delete(),
         db.maintenanceRules.where('vehicle_id').equals(id).delete(),
         db.reminders.where('vehicle_id').equals(id).delete(),
+      ])
+
+      await Promise.all([
+        tombstone('vehicles', [id]),
+        tombstone('fuelEntries', fuel),
+        tombstone('services', services),
+        tombstone('expenses', expenses),
+        tombstone('maintenanceRules', rules),
+        tombstone('reminders', reminders),
       ])
     },
   )
@@ -59,8 +98,15 @@ export async function listActiveFuelTypes(): Promise<FuelTypeRow[]> {
   return (await listFuelTypes()).filter((f) => !f.archived)
 }
 
-export async function saveFuelType(row: FuelTypeRow): Promise<void> {
-  await db.fuelTypes.put({ ...row, name: nfc(row.name), short: nfc(row.short) })
+/** `updated_at` is stamped here rather than taken from the caller: a timestamp the caller
+ *  invents would only be overwritten, and one it forgets would break the merge. */
+export async function saveFuelType(row: Omit<FuelTypeRow, 'updated_at'>): Promise<void> {
+  await db.fuelTypes.put({
+    ...row,
+    name: nfc(row.name),
+    short: nfc(row.short),
+    updated_at: now(),
+  })
 }
 
 /** How many records point at this type. Deleting one that is in use would orphan them. */
@@ -79,12 +125,15 @@ export async function fuelTypeUsage(id: string): Promise<{ vehicles: number; ent
 export async function deleteFuelType(id: string): Promise<{ ok: true } | { ok: false; usage: { vehicles: number; entries: number } }> {
   const usage = await fuelTypeUsage(id)
   if (usage.vehicles > 0 || usage.entries > 0) return { ok: false, usage }
-  await db.fuelTypes.delete(id)
+  await db.transaction('rw', [db.fuelTypes, db.tombstones], async () => {
+    await db.fuelTypes.delete(id)
+    await tombstone('fuelTypes', [id])
+  })
   return { ok: true }
 }
 
 export async function setFuelTypeArchived(id: string, archived: boolean): Promise<void> {
-  await db.fuelTypes.update(id, { archived })
+  await db.fuelTypes.update(id, { archived, updated_at: now() })
 }
 
 // ── records ─────────────────────────────────────────────────────────────────
@@ -107,9 +156,17 @@ export async function saveExpense(x: New<ExpenseRecord>): Promise<string> {
   return row.id
 }
 
-export const deleteFuelEntry = (id: string) => db.fuelEntries.delete(id)
-export const deleteService = (id: string) => db.services.delete(id)
-export const deleteExpense = (id: string) => db.expenses.delete(id)
+/** Each of these pairs the delete with its tombstone inside one transaction, so a row can
+ *  never be gone locally while the other devices still believe in it. */
+const deleteRecord = (table: 'fuelEntries' | 'services' | 'expenses', id: string) =>
+  db.transaction('rw', [db[table], db.tombstones], async () => {
+    await db[table].delete(id)
+    await tombstone(table, [id])
+  })
+
+export const deleteFuelEntry = (id: string) => deleteRecord('fuelEntries', id)
+export const deleteService = (id: string) => deleteRecord('services', id)
+export const deleteExpense = (id: string) => deleteRecord('expenses', id)
 
 export const getFuelEntry = (id: string) => db.fuelEntries.get(id)
 export const getService = (id: string) => db.services.get(id)

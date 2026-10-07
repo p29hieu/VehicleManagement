@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie'
+import { PRE_SYNC_EPOCH } from '../lib/id'
 import { DEFAULT_FUEL_TYPES, type FuelTypeRow } from '../domain/fuelTypes'
 import type {
   AppSettings,
@@ -25,6 +26,9 @@ export interface MaintenanceRuleRow {
   interval_months: number | null
   is_active: boolean
   source?: string | undefined
+  /** Added in v4. Sync merges per row and cannot order a row that will not say when it
+   *  last changed — see sync/merge.ts. */
+  updated_at: string
 }
 
 export interface ReminderRow {
@@ -42,6 +46,30 @@ export interface ReminderRow {
   status: string
   source?: string | undefined
   note?: string | null | undefined
+  /** Added in v4 — see MaintenanceRuleRow.updated_at. */
+  updated_at: string
+}
+
+/**
+ * A row that was deleted, remembered so the deletion can travel between devices.
+ *
+ * Kept in its own table rather than as a `deleted_at` column on each table: that way every
+ * existing read path (buildTimeline, the consumption engine, the reports) keeps working
+ * untouched instead of each one having to learn to filter dead rows out.
+ */
+export interface TombstoneRow {
+  table: string
+  id: string
+  deleted_at: string
+}
+
+/** Where the last sync got to. One row. */
+export interface SyncStateRow {
+  id: 'singleton'
+  backend_id: string | null
+  account_label: string | null
+  last_synced_at: string | null
+  last_token: string | null
 }
 
 class VehicleManagementDB extends Dexie {
@@ -53,6 +81,8 @@ class VehicleManagementDB extends Dexie {
   maintenanceRules!: Table<MaintenanceRuleRow, string>
   reminders!: Table<ReminderRow, string>
   fuelTypes!: Table<FuelTypeRow, string>
+  tombstones!: Table<TombstoneRow, [string, string]>
+  syncState!: Table<SyncStateRow, string>
 
   constructor() {
     super(DB_NAME)
@@ -115,8 +145,29 @@ class VehicleManagementDB extends Dexie {
           DEFAULT_FUEL_TYPES.map((f) => ({ ...f, price: prices[f.id] ?? null })),
         )
       })
+
+    // v4: sync. Two new tables, and `updated_at` on the three that never had one —
+    // without it those rows cannot take part in a per-row merge.
+    this.version(4)
+      .stores({
+        // Compound primary key: one tombstone per (table, id), so deleting the same row
+        // twice cannot produce two rows that disagree.
+        tombstones: '[table+id], table, deleted_at',
+        syncState: 'id',
+      })
+      .upgrade(async (tx) => {
+        for (const name of ['fuelTypes', 'maintenanceRules', 'reminders']) {
+          await tx
+            .table(name)
+            .toCollection()
+            .modify((row: { updated_at?: unknown }) => {
+              if (typeof row.updated_at !== 'string') row.updated_at = PRE_SYNC_EPOCH
+            })
+        }
+      })
   }
 }
+
 
 export const db = new VehicleManagementDB()
 
@@ -148,24 +199,75 @@ export async function patchSettings(patch: Partial<AppSettings>): Promise<void> 
   await db.settings.put({ ...current, ...patch, id: 'singleton', updated_at: new Date().toISOString() })
 }
 
-/** Wipes every table. Used by "xoá toàn bộ dữ liệu" and by a replace-mode import. */
+/**
+ * Wipes every table. Used by "xoá toàn bộ dữ liệu" and by a replace-mode import.
+ *
+ * Every removed row gets a tombstone, so the wipe reaches the other devices instead of
+ * being undone by the next sync pulling everything back. That makes this destructive
+ * beyond this device whenever sync is connected, which is why the UI says so.
+ */
 export async function clearAllData(): Promise<void> {
+  const wiped = [
+    'vehicles',
+    'fuelEntries',
+    'services',
+    'expenses',
+    'maintenanceRules',
+    'reminders',
+  ] as const
+
   await db.transaction(
     'rw',
-    [db.vehicles, db.fuelEntries, db.services, db.expenses, db.maintenanceRules, db.reminders, db.settings, db.fuelTypes],
+    [
+      db.vehicles,
+      db.fuelEntries,
+      db.services,
+      db.expenses,
+      db.maintenanceRules,
+      db.reminders,
+      db.settings,
+      db.fuelTypes,
+      db.tombstones,
+    ],
     async () => {
-      await Promise.all([
-        db.vehicles.clear(),
-        db.fuelEntries.clear(),
-        db.services.clear(),
-        db.expenses.clear(),
-        db.maintenanceRules.clear(),
-        db.reminders.clear(),
-        db.settings.clear(),
-      ])
+      const deleted_at = new Date().toISOString()
+
+      const ids = await Promise.all(wiped.map((t) => db[t].toCollection().primaryKeys()))
+      const fuelTypeIds = await db.fuelTypes.toCollection().primaryKeys()
+
+      await Promise.all(wiped.map((t) => db[t].clear()))
+      await db.settings.clear()
       // Wiping everything must not leave the app with no fuel types to pick from.
       await db.fuelTypes.clear()
       await db.fuelTypes.bulkAdd(DEFAULT_FUEL_TYPES.map((f) => ({ ...f })))
+
+      const tombs: TombstoneRow[] = wiped.flatMap((table, i) =>
+        (ids[i] ?? []).map((id) => ({ table: table as string, id: String(id), deleted_at })),
+      )
+      // Fuel types too — but not the built-ins, which were just put back. A row that
+      // exists must never also carry a tombstone: on a millisecond tie the merge lets the
+      // deletion win, which would silently eat the row we just re-seeded.
+      const reseeded = new Set(DEFAULT_FUEL_TYPES.map((f) => f.id))
+      for (const id of fuelTypeIds) {
+        if (!reseeded.has(String(id))) {
+          tombs.push({ table: 'fuelTypes', id: String(id), deleted_at })
+        }
+      }
+
+      await db.tombstones.bulkPut(tombs)
+      await db.tombstones.bulkDelete([...reseeded].map((id) => ['fuelTypes', id]))
     },
   )
+}
+
+/**
+ * Drops the tombstones for rows that have just been written back.
+ *
+ * Called by the importer after a replace-mode load re-creates rows the clear above had
+ * tombstoned. Without it the two carry the same timestamp and the merge's tie-break —
+ * deletion wins — would delete the freshly imported data on the next sync.
+ */
+export async function forgetTombstones(table: string, ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return
+  await db.tombstones.bulkDelete(ids.map((id) => [table, id]))
 }
