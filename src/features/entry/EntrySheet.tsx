@@ -11,6 +11,7 @@ import {
 } from '../../db/repo'
 import { Field } from '../../components/Field'
 import { MoneyInput } from '../../components/MoneyInput'
+import { fillMissing, reconcile, type FuelSide } from '../../domain/fuelMath'
 import { NumberInput } from '../../components/NumberInput'
 import { FuelFields } from './FuelFields'
 import { ServiceFields, itemsSum } from './ServiceFields'
@@ -40,6 +41,9 @@ interface FormState {
   fuel_type: FuelType
   quantity: number | null
   unit_price: number | null
+  /** Which of money/litres the user actually entered. The other one is computed from it,
+   *  and never the reverse — see domain/fuelMath.ts. */
+  typed_side: FuelSide | null
   is_full_tank: boolean
   missed_fill: boolean
   station: string
@@ -58,6 +62,7 @@ const blank = (fuel: FuelType): FormState => ({
   fuel_type: fuel,
   quantity: null,
   unit_price: null,
+  typed_side: null,
   is_full_tank: false,
   missed_fill: false,
   station: '',
@@ -88,19 +93,29 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
    * The price actually used. Until the user types one it mirrors the price stored on the
    * selected type, so it still appears when the table resolves after the first render.
    */
-  const effectivePrice =
-    form.price_touched || editing ? form.unit_price : (rememberedPrice(form.fuel_type) ?? form.unit_price)
+  const priceOf = (f: FormState) =>
+    f.price_touched || editing ? f.unit_price : (rememberedPrice(f.fuel_type) ?? f.unit_price)
+
+  const effectivePrice = priceOf(form)
 
   /** Switching type swaps in that type's remembered price. When a type has none, the
    *  current figure is kept rather than wiped — losing what the user just typed is worse
    *  than offering a stale starting point they can edit. */
   const changeFuelType = (f: FuelType) =>
-    setForm((prev) => ({
-      ...prev,
-      fuel_type: f,
-      unit_price: rememberedPrice(f) ?? effectivePrice,
-      price_touched: true,
-    }))
+    setForm((prev) => {
+      const unit_price = rememberedPrice(f) ?? priceOf(prev)
+      return {
+        ...prev,
+        fuel_type: f,
+        unit_price,
+        price_touched: true,
+        // A different grade means a different price, so the computed side follows.
+        ...(() => {
+          const pair = reconcile({ amount: prev.total_amount, quantity: prev.quantity, price: unit_price, typed: prev.typed_side })
+          return { total_amount: pair.amount, quantity: pair.quantity }
+        })(),
+      }
+    })
 
   useEffect(() => {
     if (!target) return
@@ -112,6 +127,7 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
           ...f, date: r.date, odometer_km: r.odometer_km, total_amount: r.total_amount,
           total_touched: true, price_touched: true, fuel_type: r.fuel_type ?? vehicle.fuel_type,
           quantity: r.quantity, unit_price: r.unit_price, is_full_tank: r.is_full_tank,
+          typed_side: r.quantity != null ? 'quantity' : 'amount',
           missed_fill: r.missed_fill, station: r.station ?? '', note: r.note ?? '',
         }))
         if (r.quantity != null || r.station) setMore(true)
@@ -133,6 +149,29 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
     })()
   }, [target, vehicle.fuel_type])
 
+  /**
+   * The remembered unit price resolves from Dexie after the first render, so the user can
+   * easily have typed an amount while there was no price to convert it with. This fills
+   * the empty side once a price exists — and only the empty one, so reopening a record
+   * never rewrites figures it already holds.
+   */
+  useEffect(() => {
+    if (kind !== 'fuel') return
+    setForm((f) => {
+      const filled = fillMissing({
+        amount: f.total_amount,
+        quantity: f.quantity,
+        price: priceOf(f),
+        typed: f.typed_side,
+      })
+      // Returning the same object matters: a new one every run would loop forever.
+      return filled.amount === f.total_amount && filled.quantity === f.quantity
+        ? f
+        : { ...f, total_amount: filled.amount, quantity: filled.quantity }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectivePrice, kind])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     document.addEventListener('keydown', onKey)
@@ -146,7 +185,29 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
       return { ...f, items, ...(f.total_touched || sum == null ? {} : { total_amount: sum }) }
     })
 
-  const setTotal = (v: number | null) => setForm((f) => ({ ...f, total_amount: v, total_touched: true }))
+  const setTotal = (v: number | null) =>
+    setForm((f) => {
+      const next = { ...f, total_amount: v, total_touched: true, typed_side: 'amount' as FuelSide }
+      if (kind !== 'fuel') return { ...f, total_amount: v, total_touched: true }
+      const pair = reconcile({ amount: v, quantity: f.quantity, price: priceOf(next), typed: 'amount' })
+      return { ...next, total_amount: pair.amount, quantity: pair.quantity }
+    })
+
+  /** Typing litres fills in the money, which is the direction the form could not do before. */
+  const setQuantity = (v: number | null) =>
+    setForm((f) => {
+      const next = { ...f, quantity: v, typed_side: 'quantity' as FuelSide, total_touched: true }
+      const pair = reconcile({ amount: f.total_amount, quantity: v, price: priceOf(next), typed: 'quantity' })
+      return { ...next, total_amount: pair.amount, quantity: pair.quantity }
+    })
+
+  const setUnitPrice = (v: number | null) =>
+    setForm((f) => {
+      const next = { ...f, unit_price: v, price_touched: true }
+      if (kind !== 'fuel') return next
+      const pair = reconcile({ amount: f.total_amount, quantity: f.quantity, price: v, typed: f.typed_side })
+      return { ...next, total_amount: pair.amount, quantity: pair.quantity }
+    })
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -174,18 +235,20 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
     }
 
     if (kind === 'fuel') {
-      // Derive the quantity when the user gave money and a price but no litres — that is
-      // the figure the consumption engine needs, and asking for it twice is friction.
-      const quantity =
-        form.quantity ??
-        (effectivePrice != null && effectivePrice > 0 && form.total_amount != null
-          ? Math.round((form.total_amount / effectivePrice) * 100) / 100
-          : null)
+      // Both sides are normally filled as the user types; this covers a save that beats
+      // the price arriving. It only fills what is missing, so nothing typed is rewritten.
+      const pair = fillMissing({
+        amount: form.total_amount,
+        quantity: form.quantity,
+        price: effectivePrice,
+        typed: form.typed_side,
+      })
 
       await saveFuelEntry({
         ...base,
+        total_amount: pair.amount,
         fuel_type: form.fuel_type,
-        quantity,
+        quantity: pair.quantity,
         unit_price: effectivePrice,
         is_full_tank: form.is_full_tank,
         missed_fill: form.missed_fill,
@@ -250,7 +313,13 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
         )}
 
         <div className="sheet__body">
-          <Field label="Số tiền" htmlFor="f-amount">
+          <Field
+            label="Số tiền"
+            htmlFor="f-amount"
+            {...(kind === 'fuel' && form.typed_side === 'quantity' && form.total_amount != null
+              ? { hint: 'Tự tính từ số lượng × đơn giá' }
+              : {})}
+          >
             <MoneyInput id="f-amount" big value={form.total_amount} onChange={setTotal} />
           </Field>
 
@@ -283,8 +352,9 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
               missedFill={form.missed_fill}
               station={form.station}
               onFuelType={changeFuelType}
-              onUnitPrice={(v) => setForm((f) => ({ ...f, unit_price: v, price_touched: true }))}
-              onQuantity={(v) => set('quantity', v)}
+              onUnitPrice={setUnitPrice}
+              onQuantity={setQuantity}
+              typedSide={form.typed_side}
               onFullTank={(v) => set('is_full_tank', v)}
               onMissedFill={(v) => set('missed_fill', v)}
               onStation={(v) => set('station', v)}

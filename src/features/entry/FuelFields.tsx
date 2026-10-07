@@ -3,7 +3,8 @@ import { priceUnitLabel, unitLabel, type FuelTypeRow } from '../../domain/fuelTy
 import { Field } from '../../components/Field'
 import { MoneyInput } from '../../components/MoneyInput'
 import { NumberInput } from '../../components/NumberInput'
-import { dec2 } from '../../lib/format'
+import { money } from '../../lib/format'
+import type { FuelSide } from '../../domain/fuelMath'
 
 interface Props {
   fuelTypes: readonly FuelTypeRow[]
@@ -22,18 +23,25 @@ interface Props {
   onStation: (v: string) => void
   more: boolean
   onMore: (v: boolean) => void
+  /** Which side the user typed; the other one carries a "computed" hint. */
+  typedSide: FuelSide | null
 }
 
 export function FuelFields({
   fuelTypes, fuelType, unitPrice, quantity, totalAmount, isFullTank, missedFill, station,
   onFuelType, onUnitPrice, onQuantity, onFullTank, onMissedFill, onStation, more, onMore,
+  typedSide,
 }: Props) {
   const unit = fuelTypes.find((f) => f.id === fuelType)?.unit ?? 'liter'
-  // Shown rather than silently stored, so the figure the maths will use is visible up front.
-  const derived =
-    quantity == null && unitPrice != null && unitPrice > 0 && totalAmount != null
-      ? totalAmount / unitPrice
-      : null
+  const hasPrice = unitPrice != null && unitPrice > 0
+
+  /** Either field may be the one the user fills; the other then says where it came from,
+   *  so a number that appeared on its own is never mistaken for one that was measured. */
+  const quantityHint = !hasPrice
+    ? 'Nhập đơn giá ở trên để quy đổi qua lại với số tiền'
+    : typedSide === 'amount' && quantity != null
+      ? `Tự tính từ ${money(totalAmount)} ÷ đơn giá`
+      : 'Nhập số lít — số tiền ở trên sẽ tự tính'
 
   return (
     <>
@@ -72,6 +80,12 @@ export function FuelFields({
         />
       </Field>
 
+      {/* Sits beside the price, not under "Thêm chi tiết": money and litres are two ways
+          of saying the same thing, and either may be the one the receipt shows. */}
+      <Field label={`Số lượng (${unitLabel(unit)})`} htmlFor="f-qty" hint={quantityHint}>
+        <NumberInput id="f-qty" value={quantity} onChange={onQuantity} suffix={unitLabel(unit)} />
+      </Field>
+
       {/* The flag that decides whether exact L/100km is ever computable (docs §3.1),
           so it is a pair of real buttons, not a checkbox in an "advanced" section. */}
       <Field label="Mức đổ">
@@ -103,22 +117,6 @@ export function FuelFields({
 
       {more && (
         <>
-          <Field
-            label={`Số lượng (${unitLabel(unit)})`}
-            htmlFor="f-qty"
-            hint={
-              derived != null
-                ? `Để trống sẽ tự tính: ${dec2(derived)} ${unitLabel(unit)}`
-                : undefined
-            }
-          >
-            <NumberInput
-              id="f-qty"
-              value={quantity}
-              onChange={onQuantity}
-              suffix={unitLabel(unit)}
-            />
-          </Field>
           <Field label="Trạm" htmlFor="f-station">
             <input
               id="f-station"
