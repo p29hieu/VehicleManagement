@@ -108,6 +108,41 @@ verification: Search Console đòi bản ghi DNS TXT tại registrar, mà GitHub
 
 ---
 
+## 3b. Tự đồng bộ
+
+`src/sync/autoSync.ts` — chạy `syncOnce` mỗi **5 phút** sau khi đã kết nối.
+
+Nó là một object cấp module, không phải hook, vì **lịch phải sống lâu hơn mọi màn hình**:
+panel đồng bộ nằm trong Cài đặt, mà màn đó lazy-load và unmount ngay khi bạn rời đi. Một
+timer thuộc về component chỉ tick khi bạn đang nhìn nó — tức là vô dụng.
+
+| Chuyện gì xảy ra | Lịch |
+|---|---|
+| Thành công | tiếp tục |
+| Conflict (máy khác ghi cùng lúc) | **tiếp tục** — tạm thời, lượt sau sẽ qua |
+| Lỗi mạng / Drive 5xx | **tiếp tục**, ghi lại lý do, thử lại lượt sau |
+| Đang offline | **bỏ lượt**, không tính là thất bại |
+| Chưa kết nối | dừng, `pausedBy: 'disconnected'` |
+| **Gia hạn token ngầm thất bại** | **dừng hẳn**, `pausedBy: 'auth'` |
+
+Về điều kiện dừng: token sống 1 giờ và **không có refresh token**, nhưng hết hạn thường
+*vô hình* vì app xin token mới ngầm được (`prompt: ''`). Nên thứ thực sự làm dừng lịch là
+**gia hạn ngầm thất bại** — đúng lúc cần một cú bấm của bạn. Gia hạn cần popup, mà timer
+thì không mở popup được, nên thử lại mỗi 5 phút chỉ là thất bại đều đặn mãi mãi.
+
+Hai bất biến có test riêng:
+- **Không bao giờ chạy chồng.** Một lượt chậm vắt qua tick kế tiếp, hoặc một cú bấm "Đồng
+  bộ ngay" rơi trúng lúc timer đang chạy, đều bị mutex chặn. Hai lượt song song sẽ merge
+  lên trạng thái dở dang của nhau và sinh conflict vô cớ.
+- **Pause sống sót qua restart.** `App.tsx` gọi `start()` mỗi lần mount, và React remount
+  thoải mái; nếu không có luật này thì một lần remount sẽ âm thầm bật lại một lịch chỉ có
+  thể thất bại. Chỉ `resume()` — do bạn bấm kết nối lại — mới gỡ pause.
+
+Lịch chỉ chạy **khi app đang mở**. Không có background sync sau khi đóng tab: muốn vậy
+phải có Periodic Background Sync, mà nó không khả dụng trên iOS và vẫn cần token.
+
+---
+
 ## 4. Tạo OAuth client ID
 
 Không có nó, app vẫn build và chạy — panel đồng bộ chỉ báo "chưa bật".

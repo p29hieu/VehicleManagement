@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { EmptyState } from './components/EmptyState'
 import { TabBar } from './components/TabBar'
@@ -8,6 +8,8 @@ import { ReportsScreen } from './features/reports/ReportsScreen'
 import { EntrySheet, type EntryTarget } from './features/entry/EntrySheet'
 import { VehicleSwitcher } from './features/vehicles/VehicleSwitcher'
 import { useActiveVehicle, useLatestOdometer, useTimeline, useVehicles } from './hooks/useAppData'
+import { autoSync } from './sync/autoSync'
+import { backend } from './sync/backend'
 import './styles/app.css'
 
 /** Settings pulls in zod and the whole import pipeline, none of which the timeline needs.
@@ -26,6 +28,16 @@ export default function App() {
     target: null,
   })
   const navigate = useNavigate()
+
+  /**
+   * Auto-sync is started here, not in the sync panel: that panel lives in Settings, which
+   * is lazy loaded and unmounts as soon as you navigate away. A schedule that only ticks
+   * while you are looking at it would be no schedule at all.
+   */
+  useEffect(() => {
+    autoSync.start(backend)
+    return () => autoSync.stop()
+  }, [])
 
   const hasVehicle = !!active
 

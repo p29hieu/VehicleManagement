@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { DriveBackend } from '../../sync/backends/drive'
-import { syncOnce } from '../../sync/engine'
+import { backend } from '../../sync/backend'
+import { AUTO_SYNC_INTERVAL_MS, autoSync } from '../../sync/autoSync'
 import { getSyncState } from '../../sync/snapshot'
-import { SyncAuthError, SyncConflictError, type SyncBackend } from '../../sync/types'
+import { SyncAuthError, SyncConflictError } from '../../sync/types'
 import type { MergeStats } from '../../sync/merge'
 import './sync.css'
 
@@ -27,18 +27,20 @@ function describe(stats: MergeStats): string {
 const when = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : '—'
 
+const EVERY = Math.round(AUTO_SYNC_INTERVAL_MS / 60000)
+
 export function SyncPanel() {
-  // One instance for the life of the panel: it caches the Drive file id, and rebuilding it
-  // every render would throw that away and re-search on each sync.
-  const backend = useMemo<SyncBackend>(() => new DriveBackend(), [])
+  // The backend is a module singleton (sync/backend.ts) because the scheduler outlives
+  // this panel — Settings is lazy loaded and unmounts the moment you navigate away.
   const state = useLiveQuery(() => getSyncState(), [])
-  const account = useLiveQuery(() => backend.currentAccount(), [backend])
+  const account = useLiveQuery(() => backend.currentAccount(), [])
+  const auto = useSyncExternalStore(autoSync.subscribe, autoSync.getStatus)
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [result, setResult] = useState<Result | null>(null)
 
   const configured = backend.isConfigured()
-  const busy = phase !== 'idle'
+  const busy = phase !== 'idle' || auto.syncing
 
   async function run(next: Phase, fn: () => Promise<void>) {
     setPhase(next)
@@ -55,12 +57,17 @@ export function SyncPanel() {
   const connect = () =>
     run('connecting', async () => {
       await backend.connect()
-      setResult({ kind: 'ok', text: 'Đã kết nối. Bấm "Đồng bộ ngay" để tải dữ liệu lên.' })
+      // A fresh grant is the one thing that can lift an auth pause, so say so explicitly.
+      autoSync.resume()
+      setResult({ kind: 'ok', text: `Đã kết nối. Từ giờ tự đồng bộ mỗi ${EVERY} phút.` })
     })
 
+  // Goes through the scheduler rather than calling syncOnce directly, so a tap cannot land
+  // on top of a tick that is already running.
   const sync = () =>
     run('syncing', async () => {
-      const outcome = await syncOnce(backend)
+      const outcome = await autoSync.syncNow()
+      if (!outcome) return
       setResult({
         kind: 'ok',
         text: outcome.status === 'up-to-date' ? 'Đã là bản mới nhất' : 'Đồng bộ xong',
@@ -71,6 +78,7 @@ export function SyncPanel() {
   const disconnect = () =>
     run('connecting', async () => {
       await backend.disconnect()
+      autoSync.stop()
       setResult({ kind: 'ok', text: 'Đã ngắt kết nối. Dữ liệu trên Drive vẫn còn nguyên.' })
     })
 
@@ -107,12 +115,44 @@ export function SyncPanel() {
               <dt>Lần cuối</dt>
               <dd className="num">{when(state?.last_synced_at ?? null)}</dd>
             </div>
+            <div>
+              <dt>Tự động</dt>
+              <dd className={auto.pausedBy === 'auth' ? 'sync__warn' : auto.running ? 'sync__ok' : ''}>
+                {auto.pausedBy === 'auth'
+                  ? 'Đã dừng'
+                  : auto.running
+                    ? `Mỗi ${EVERY} phút`
+                    : 'Tắt'}
+              </dd>
+            </div>
           </dl>
+
+          {auto.pausedBy === 'auth' && (
+            <p className="sync__result sync__result--error" role="status">
+              <strong>Đã dừng tự đồng bộ</strong>
+              <span className="sync__detail">
+                Phiên Google hết hạn và không gia hạn ngầm được. Bấm "Kết nối Google Drive"
+                một lần, tự đồng bộ sẽ chạy lại.
+              </span>
+            </p>
+          )}
+
+          {auto.lastError && auto.pausedBy === null && (
+            <p className="sync__result sync__result--warn" role="status">
+              <strong>Lần tự đồng bộ gần nhất chưa xong</strong>
+              <span className="sync__detail">{auto.lastError} — sẽ thử lại ở lượt sau.</span>
+            </p>
+          )}
 
           <div className="sync__actions">
             <button type="button" className="btn btn--primary" onClick={sync} disabled={busy}>
               {phase === 'syncing' ? 'Đang đồng bộ…' : 'Đồng bộ ngay'}
             </button>
+            {auto.pausedBy === 'auth' && (
+              <button type="button" className="btn btn--primary" onClick={connect} disabled={busy}>
+                Kết nối Google Drive
+              </button>
+            )}
             <button type="button" className="btn" onClick={disconnect} disabled={busy}>
               Ngắt kết nối
             </button>
@@ -134,8 +174,10 @@ export function SyncPanel() {
       )}
 
       <p className="panel__hint sync__caveat">
-        Đồng bộ chạy khi bạn bấm, không chạy nền: Google chỉ cấp token một giờ và không cấp
-        refresh token cho app chạy hoàn toàn trong trình duyệt.
+        Tự đồng bộ chạy mỗi {EVERY} phút khi app đang mở — không chạy nền sau khi bạn đóng
+        tab. Google chỉ cấp token một giờ và không cấp refresh token cho app chạy hoàn toàn
+        trong trình duyệt; app tự gia hạn ngầm được, nhưng khi không gia hạn nổi thì tự
+        đồng bộ dừng hẳn thay vì thử lại vô ích.
       </p>
     </section>
   )

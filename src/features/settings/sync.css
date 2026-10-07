@@ -77,3 +77,12 @@
   padding-block-start: 10px;
   border-block-start: 1px solid var(--c-line-soft);
 }
+
+/* Auto-sync has a third state between fine and broken: a tick failed but the schedule is
+   still armed. It is worth showing, but not in the same red as "you must act". */
+.sync__warn { color: var(--c-fuel-deep); }
+
+.sync__result--warn {
+  background: color-mix(in oklab, var(--c-fuel) 14%, transparent);
+  border-inline-start-color: var(--c-fuel-deep);
+}
