@@ -8,8 +8,6 @@ import { ReportsScreen } from './features/reports/ReportsScreen'
 import { EntrySheet, type EntryTarget } from './features/entry/EntrySheet'
 import { VehicleSwitcher } from './features/vehicles/VehicleSwitcher'
 import { useActiveVehicle, useLatestOdometer, useTimeline, useVehicles } from './hooks/useAppData'
-import { autoSync } from './sync/autoSync'
-import { backend } from './sync/backend'
 import './styles/app.css'
 
 /** Settings pulls in zod and the whole import pipeline, none of which the timeline needs.
@@ -33,10 +31,30 @@ export default function App() {
    * Auto-sync is started here, not in the sync panel: that panel lives in Settings, which
    * is lazy loaded and unmounts as soon as you navigate away. A schedule that only ticks
    * while you are looking at it would be no schedule at all.
+   *
+   * Imported dynamically, though. A static import drags DriveBackend and the Google
+   * Identity client into the entry chunk, which measured +4.3 kB gzip on first paint — the
+   * very cost the lazy Settings route exists to avoid. Loading it one tick later costs
+   * nothing: the first sync is network-bound anyway.
    */
   useEffect(() => {
-    autoSync.start(backend)
-    return () => autoSync.stop()
+    let cancelled = false
+    let stop: (() => void) | undefined
+
+    void (async () => {
+      const [{ autoSync }, { backend }] = await Promise.all([
+        import('./sync/autoSync'),
+        import('./sync/backend'),
+      ])
+      if (cancelled) return
+      autoSync.start(backend)
+      stop = () => autoSync.stop()
+    })()
+
+    return () => {
+      cancelled = true
+      stop?.()
+    }
   }, [])
 
   const hasVehicle = !!active
