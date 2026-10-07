@@ -32,8 +32,18 @@ body {
   border-radius: 3px;
 }
 
+/* `height`, NOT `min-height`.
+   min-height only sets a floor, so the flex container stayed auto-height and .content —
+   despite flex: 1 and min-block-size: 0 — grew to its full content height instead of
+   taking the leftover space. That left it a scroll container with nothing to scroll, and
+   its own `overscroll-behavior: contain` then stopped the wheel chaining up to the
+   document, which was the only thing still able to move. Net effect: the longer screens
+   could not be scrolled at all.
+   A definite height makes .content the single real scroller, which is what the app shell
+   wanted all along. dvh rather than vh so a mobile toolbar appearing resizes the shell
+   instead of pushing the tab bar out of reach. */
 #root {
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
