@@ -1,19 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { costSummary, monthlyCosts } from '../reports'
-import type { ExpenseRecord, FuelEntry, ServiceRecord } from '../types'
+import { costSummary, fuelOverview, monthlyCosts } from '../reports'
+import type { ExpenseRecord, FuelEntry, ServiceRecord, Vehicle } from '../types'
+
+const car: Vehicle = {
+  id: 'V', name: 'Test', kind: 'car', make: null, model: null, plate: null, year: null,
+  fuel_type: 'ron95', tank_capacity_l: null, battery_kwh: null, initial_odometer_km: 0,
+  odometer_offset_km: 0, consumption_min: 4, consumption_max: 25, is_active: true,
+  note: null, updated_at: '',
+}
 
 let n = 0
 const fill = (date: string, odo: number | null, total: number): FuelEntry => ({
-  id: `F${++n}`, vehicle_id: 'V', date, odometer_km: odo, fuel_type: null, quantity: null,
+  id: `F${++n}`, vehicle_id: 'V', date, time: null, odometer_km: odo, fuel_type: null, quantity: null,
   unit_price: null, total_amount: total, is_full_tank: false, missed_fill: false,
   station: null, payment_method: null, note: null, updated_at: '',
 })
 const svc = (date: string, odo: number | null, total: number): ServiceRecord => ({
-  id: `S${++n}`, vehicle_id: 'V', date, odometer_km: odo, items: [{ name: 'x', amount: null }],
+  id: `S${++n}`, vehicle_id: 'V', date, time: null, odometer_km: odo, items: [{ name: 'x', amount: null }],
   total_amount: total, workshop: null, note: null, updated_at: '',
 })
 const exp = (date: string, total: number): ExpenseRecord => ({
-  id: `X${++n}`, vehicle_id: 'V', date, odometer_km: null, category: 'Gửi xe',
+  id: `X${++n}`, vehicle_id: 'V', date, time: null, odometer_km: null, category: 'Gửi xe',
   total_amount: total, note: null, updated_at: '',
 })
 
@@ -99,5 +106,78 @@ describe('monthlyCosts', () => {
   it('rolls the year over correctly', () => {
     const r = monthlyCosts([fill('2025-11-01', 1, 1), fill('2026-02-01', 2, 1)], [], [])
     expect(r.map((b) => b.month)).toEqual(['2025-11', '2025-12', '2026-01', '2026-02'])
+  })
+})
+
+
+describe('fuelOverview', () => {
+  const priced = (date: string, odo: number, total: number, price: number | null = 21_000) => ({
+    ...fill(date, odo, total),
+    unit_price: price,
+  })
+
+  it('totals the money over exactly the fills it is given', () => {
+    const o = fuelOverview([priced('2026-01-01', 1000, 210_000), priced('2026-01-10', 1300, 210_000)], car)
+    expect(o.totalAmount).toBe(420_000)
+    expect(o.fillCount).toBe(2)
+    expect(o.distanceKm).toBe(300)
+  })
+
+  it('sums the litres, deriving them from money and price where needed', () => {
+    const o = fuelOverview([priced('2026-01-01', 1000, 210_000), priced('2026-01-10', 1300, 210_000)], car)
+    expect(o.totalLiters).toBeCloseTo(20, 6) // 210.000 / 21.000 twice
+    expect(o.litersEstimated).toBe(false)    // each fill recorded its own price
+  })
+
+  it('flags litres that leant on the fuel type\'s current price', () => {
+    const noPrice = [priced('2026-01-01', 1000, 210_000, null), priced('2026-01-10', 1300, 210_000, null)]
+    const o = fuelOverview(noPrice, car, () => 21_000)
+    expect(o.totalLiters).toBeCloseTo(20, 6)
+    expect(o.litersEstimated).toBe(true)
+  })
+
+  it('reports no litres at all when nothing can produce them', () => {
+    const o = fuelOverview([priced('2026-01-01', 1000, 210_000, null)], car)
+    expect(o.totalLiters).toBeNull()
+    expect(o.litersEstimated).toBe(false)
+  })
+
+  // The headline figure must be distance-weighted, not the mean of the per-row estimates.
+  it('uses the distance-weighted aggregate, not the mean of the intervals', () => {
+    const entries = [
+      priced('2026-01-01', 1000, 210_000),  // 10 L
+      priced('2026-01-10', 1100, 210_000),  // 10 L over 100 km -> 10 L/100km
+      priced('2026-01-20', 1500, 210_000),  // 10 L over 400 km -> 2.5 L/100km
+    ]
+    const o = fuelOverview(entries, car)
+    const meanOfIntervals = (10 + 2.5) / 2
+
+    // 20 L over 500 km = 4 L/100km, which is NOT 6.25.
+    expect(o.avgL100).toBeCloseTo(4, 6)
+    expect(o.avgL100).not.toBeCloseTo(meanOfIntervals, 2)
+    expect(o.exact).toBe(false)
+  })
+
+  it('reports an exact figure when full tanks bracket the window', () => {
+    const entries = [
+      { ...priced('2026-01-01', 1000, 210_000), is_full_tank: true },
+      { ...priced('2026-01-10', 1200, 210_000), is_full_tank: true }, // 10 L over 200 km
+    ]
+    const o = fuelOverview(entries, car)
+    expect(o.exact).toBe(true)
+    expect(o.avgL100).toBeCloseTo(5, 6)
+  })
+
+  it('is empty, not broken, with no fills', () => {
+    const o = fuelOverview([], car)
+    expect(o).toMatchObject({
+      avgL100: null, totalLiters: null, totalAmount: 0, fillCount: 0, distanceKm: 0,
+    })
+  })
+
+  it('cannot measure a distance from a single fill', () => {
+    const o = fuelOverview([priced('2026-01-01', 1000, 210_000)], car)
+    expect(o.distanceKm).toBe(0)
+    expect(o.avgL100).toBeNull()
   })
 })

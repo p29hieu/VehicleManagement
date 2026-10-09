@@ -51,6 +51,10 @@ export interface FuelEntry {
   fuel_type: FuelType | null
   /** ISO yyyy-mm-dd. Stored as a string so sorting is lexicographic and timezone-free. */
   date: string
+  /** Optional `HH:MM`, 24-hour, local wall clock. Null on every record written before the
+   *  field existed, and on any the user did not bother to time — the hour is a nicety, and
+   *  demanding it would make the fastest path through the form slower. */
+  time: string | null
   /** Nullable on purpose. `0` means "not recorded", never "brand new vehicle" — docs §3.3. */
   odometer_km: number | null
   quantity: number | null
@@ -76,6 +80,8 @@ export interface ServiceRecord {
   id: string
   vehicle_id: string
   date: string
+  /** See FuelEntry.time. */
+  time: string | null
   odometer_km: number | null
   items: ServiceItem[]
   /** Authoritative. Item amounts are optional detail that may not add up to it. */
@@ -89,6 +95,8 @@ export interface ExpenseRecord {
   id: string
   vehicle_id: string
   date: string
+  /** See FuelEntry.time. */
+  time: string | null
   odometer_km: number | null
   category: string
   total_amount: number | null
@@ -118,6 +126,8 @@ export interface TimelineItem {
   id: string
   vehicle_id: string
   date: string
+  /** `HH:MM` or null — see FuelEntry.time. */
+  time: string | null
   odometer_km: number | null
   total_amount: number | null
   title: string
@@ -126,6 +136,13 @@ export interface TimelineItem {
   delta_km: number | null
   /** Short tag shown beside the title: the fuel grade, or the service item count. */
   badge: string | null
+  /** Volume put in, and the unit it is measured in ("L" / "kWh"). Null on non-fuel rows,
+   *  and on a fill that recorded neither litres nor a unit price to derive them from:
+   *  a figure guessed from today's pump price does not belong on a past record. */
+  liters: number | null
+  unit: string | null
+  /** Price per litre/kWh as recorded on the fill itself. */
+  unit_price: number | null
   /** Consumption for this fill, in litres (or kWh) per 100 km. Null on non-fuel rows and
    *  whenever the data cannot support a figure. `exact` separates a measurement between
    *  two full tanks from the aggregate estimate. */

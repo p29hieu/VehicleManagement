@@ -13,8 +13,8 @@ import {
   verbForUnit,
   type FuelTypeRow,
 } from '../domain/fuelTypes'
-import { dec2, money } from '../lib/format'
-import { consumptionByEntry } from '../domain/consumption'
+import { money } from '../lib/format'
+import { consumptionByEntry, litersOf } from '../domain/consumption'
 
 type New<T> = Omit<T, 'id' | 'updated_at'> & { id?: string }
 
@@ -173,15 +173,15 @@ export const getService = (id: string) => db.services.get(id)
 export const getExpense = (id: string) => db.expenses.get(id)
 
 // ── timeline ────────────────────────────────────────────────────────────────
-function fuelSubtitle(e: FuelEntry, grade: FuelTypeRow): string | null {
+/**
+ * The tags on a fill — what the numbers cannot say.
+ *
+ * Quantity and unit price used to live here too. They are now facts on the row, each with
+ * its own label, and repeating them here put the same two figures on screen twice within
+ * three lines — with the second copy being the one that got truncated.
+ */
+function fuelSubtitle(e: FuelEntry): string | null {
   const bits: string[] = []
-  // Quantity and unit price together are what let a user sanity-check a past fill.
-  if (e.quantity != null) {
-    const q = `${dec2(e.quantity)} ${unitLabel(grade.unit)}`
-    bits.push(e.unit_price != null ? `${q} × ${money(e.unit_price)}` : q)
-  } else if (e.unit_price != null) {
-    bits.push(money(e.unit_price))
-  }
   bits.push(e.is_full_tank ? 'đổ đầy' : 'đổ một phần')
   if (e.missed_fill) bits.push('có bỏ sót lần đổ')
   if (e.station) bits.push(e.station)
@@ -222,17 +222,25 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
       // The entry's own grade wins; null means it was filled with the vehicle's default.
       // A grade the user has since deleted still renders, as a visible placeholder.
       const grade = resolveFuelType(e.fuel_type, fuelTypes, vehicle?.fuel_type)
+      // Litres as RECORDED, or derived from this fill's own money and price. Today's pump
+      // price is deliberately not used as a fallback here: the row is a statement about a
+      // past purchase, and a figure from a price that has since moved would be fiction.
+      const liters = litersOf(e, null)
       return {
         kind: 'fuel',
         id: e.id,
         vehicle_id: e.vehicle_id,
         date: e.date,
+        time: e.time,
         odometer_km: e.odometer_km,
         total_amount: e.total_amount,
         title: verbForUnit(grade.unit),
-        subtitle: fuelSubtitle(e, grade),
+        subtitle: fuelSubtitle(e),
         delta_km: null,
         badge: grade.short,
+        liters,
+        unit: unitLabel(grade.unit),
+        unit_price: e.unit_price,
         consumption: (() => {
           const c = consumption.get(e.id)
           return c ? { l100: c.l100, exact: c.exact, outOfBand: c.outOfBand } : null
@@ -244,12 +252,16 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
       id: s.id,
       vehicle_id: s.vehicle_id,
       date: s.date,
+      time: s.time,
       odometer_km: s.odometer_km,
       total_amount: s.total_amount,
       title: s.items[0]?.name ?? 'Bảo dưỡng',
       subtitle: serviceSubtitle(s),
       delta_km: null,
       badge: s.items.length > 1 ? `${s.items.length} hạng mục` : null,
+      liters: null,
+      unit: null,
+      unit_price: null,
       consumption: null,
     })),
     ...expenses.map<TimelineItem>((x) => ({
@@ -257,12 +269,16 @@ export async function buildTimeline(vehicleId: string): Promise<TimelineItem[]> 
       id: x.id,
       vehicle_id: x.vehicle_id,
       date: x.date,
+      time: x.time,
       odometer_km: x.odometer_km,
       total_amount: x.total_amount,
       title: x.category,
       subtitle: x.note,
       delta_km: null,
       badge: null,
+      liters: null,
+      unit: null,
+      unit_price: null,
       consumption: null,
     })),
   ]

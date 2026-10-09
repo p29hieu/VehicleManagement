@@ -1,4 +1,5 @@
-import type { ExpenseRecord, FuelEntry, ServiceRecord } from './types'
+import type { ExpenseRecord, FuelEntry, ServiceRecord, Vehicle } from './types'
+import { averageConsumption, litersOf, type PriceLookup } from './consumption'
 
 /**
  * Cost aggregation for the reports screen. Pure functions, no database.
@@ -65,6 +66,67 @@ export function costSummary(
     perKm: distanceKm > 0 ? total / distanceKm : null,
     fuelPerKm: distanceKm > 0 ? fuelAfterFirst / distanceKm : null,
     recordCount: fuel.length + services.length + expenses.length,
+  }
+}
+
+export interface FuelOverview {
+  /**
+   * Distance-weighted across the window — the aggregate, deliberately NOT the mean of the
+   * per-row estimates shown on the timeline. Averaging those would weigh a 200 km interval
+   * the same as a 400 km one, and each carries the full tank-level error of its interval.
+   */
+  avgL100: number | null
+  /** Measured between full tanks, rather than estimated from money and price. */
+  exact: boolean
+  totalLiters: number | null
+  /** At least one fill's litres came from the type's CURRENT price, not a recorded one. */
+  litersEstimated: boolean
+  totalAmount: number
+  fillCount: number
+  distanceKm: number
+}
+
+/**
+ * The three headline fuel figures for a window of fills.
+ *
+ * Every figure is computed from the fills handed in, so filtering by period is the
+ * caller's job and this stays a pure function of its input.
+ */
+export function fuelOverview(
+  fuel: readonly FuelEntry[],
+  vehicle: Vehicle,
+  priceFor: PriceLookup = () => null,
+): FuelOverview {
+  const totalAmount = fuel.reduce((a, e) => a + amount(e.total_amount), 0)
+
+  let totalLiters = 0
+  let anyLiters = false
+  let litersEstimated = false
+  for (const e of fuel) {
+    const q = litersOf(e, priceFor(e.fuel_type))
+    if (q == null) continue
+    totalLiters += q
+    anyLiters = true
+    // Only flag a figure that leant on today's price for a fill that recorded neither
+    // its own litres nor its own price.
+    if ((e.quantity == null || e.quantity <= 0) && (e.unit_price == null || e.unit_price <= 0)) {
+      litersEstimated = true
+    }
+  }
+
+  const odos = fuel
+    .map((e) => odoOf(e.odometer_km))
+    .filter((n): n is number => n != null)
+  const avg = averageConsumption(fuel, vehicle, priceFor)
+
+  return {
+    avgL100: avg?.l100 ?? null,
+    exact: avg?.exact ?? false,
+    totalLiters: anyLiters ? totalLiters : null,
+    litersEstimated,
+    totalAmount,
+    fillCount: fuel.length,
+    distanceKm: odos.length >= 2 ? Math.max(...odos) - Math.min(...odos) : 0,
   }
 }
 

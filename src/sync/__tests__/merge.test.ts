@@ -47,6 +47,7 @@ const fill = (id: string, amount: number, updated_at: string): FuelEntry => ({
   id,
   vehicle_id: 'VH1',
   fuel_type: 'ron95',
+  time: null,
   date: '2026-01-01',
   odometer_km: 1000,
   quantity: null,

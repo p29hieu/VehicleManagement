@@ -154,6 +154,41 @@
   letter-spacing: -0.015em;
 }
 
+/* ── Per-record facts ────────────────────────────────────────────── */
+/* A wrapping row rather than a grid: the facts a record has vary (a service has no litres,
+   an undated-odometer fill has no distance), and a fixed grid would leave holes where the
+   missing ones used to be. Wrapping also means nothing is ever truncated — the whole point
+   of showing the detail is that it can be read. */
+.row__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  min-inline-size: 0;
+}
+
+.fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-inline-size: 0;
+}
+
+.fact__k {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+.fact__v {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--c-ink-soft);
+  white-space: nowrap;
+}
+
 /* ── Filter tabs ─────────────────────────────────────────────────── */
 .hfilter {
   position: sticky;
@@ -237,15 +272,94 @@
 
 /* ── Fuel summary ────────────────────────────────────────────────── */
 .fsum {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1px;
   margin: 12px var(--space-gutter) 4px;
-  background: var(--c-line-soft);
+  background-image: var(--g-surface);
   border: 1px solid var(--c-line);
   border-radius: var(--radius-lg);
   overflow: hidden;
   animation: rise var(--dur-slow) var(--ease-out) backwards;
+}
+
+.fsum__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 11px 14px 9px;
+}
+
+.fsum__title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-ink-soft);
+}
+
+/* ── Period chips ────────────────────────────────────────────────── */
+/* `flex: 1 1 100%` drops the chips onto their own line rather than letting them share one
+   with the heading, where five labels had nowhere to go but off the edge.
+   They wrap rather than scroll: a horizontally scrolling strip hides its last chip behind
+   the card edge, and a control the user cannot see is a control they will not use. Two
+   rows on a narrow phone costs ~28px and keeps every option visible. */
+.periods {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 3px;
+  min-inline-size: 0;
+}
+
+.periods__chip {
+  flex: none;
+  padding: 4px 8px;
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--c-ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+.periods__chip:hover { background-color: var(--c-surface-sunk); }
+.periods__chip.is-active {
+  background-image: var(--g-fuel);
+  border-color: transparent;
+  color: var(--c-on-fuel);
+}
+
+.fsum__range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 0 14px 11px;
+}
+.fsum__rangecell {
+  display: grid;
+  gap: 3px;
+  min-inline-size: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-faint);
+}
+
+/* 1px gaps over a line-coloured backdrop draw the cell dividers without extra borders. */
+.fsum__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1px;
+  background: var(--c-line-soft);
+  border-block-start: 1px solid var(--c-line-soft);
 }
 
 .fsum__cell {
@@ -290,20 +404,23 @@
 .fsum__cell[data-overdue] .fsum__value { color: var(--c-danger); }
 
 /* ── Per-row consumption ─────────────────────────────────────────── */
+/* The one fact that is a claim rather than a reading, so it is the one that looks
+   different: a pill in the fuel hue, carrying the tilde when it is an estimate. */
 .row__cons {
-  flex: none;
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: 999px;
   color: var(--c-on-fuel);
   background-image: var(--g-fuel);
 }
-.row__cons[data-exact="false"] { opacity: 0.82; }
+.row__cons[data-exact="false"] { opacity: 0.86; }
 
+/* Sits below the grid, spanning the whole card, so the caveat reads as being about the
+   figure above it rather than about one cell. */
 .fsum__warn {
-  margin-block-start: 6px;
-  padding: 7px 9px;
+  margin: 0;
+  padding: 8px 14px;
   font-size: 0.7rem;
   line-height: 1.4;
   color: var(--c-ink);

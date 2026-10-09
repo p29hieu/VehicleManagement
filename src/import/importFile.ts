@@ -127,16 +127,18 @@ export async function runImport(raw: unknown, opts: ImportOptions): Promise<Impo
     async () => {
       await db.vehicles.bulkPut(file.vehicles.map((v) => ({ ...v, name: nfc(v.name), updated_at: ts })))
       await db.fuelEntries.bulkPut(
-        file.fuel_entries.map((e) => ({ ...e, fuel_type: e.fuel_type ?? null, updated_at: ts })),
+        // `time` is optional in the file format; absent means the hour was never recorded.
+        file.fuel_entries.map((e) => ({ ...e, fuel_type: e.fuel_type ?? null, time: e.time ?? null, updated_at: ts })),
       )
       await db.services.bulkPut(
         file.services.map((s) => ({
           ...s,
           items: s.items.map((i) => ({ name: nfc(i.name), amount: i.amount })),
+          time: s.time ?? null,
           updated_at: ts,
         })),
       )
-      await db.expenses.bulkPut(file.expenses.map((x) => ({ ...x, updated_at: ts })))
+      await db.expenses.bulkPut(file.expenses.map((x) => ({ ...x, time: x.time ?? null, updated_at: ts })))
 
       // A replace-mode load ran clearAllData(), which tombstoned every id it removed.
       // Any id written back above is alive again and must not keep its tombstone: both

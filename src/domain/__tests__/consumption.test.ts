@@ -20,7 +20,7 @@ const bike: Vehicle = { ...car, kind: 'motorcycle', consumption_min: 1.2, consum
 
 let n = 0
 const fill = (p: Partial<FuelEntry>): FuelEntry => ({
-  id: `E${++n}`, vehicle_id: 'V', date: '2026-01-01', odometer_km: null, fuel_type: null,
+  id: `E${++n}`, vehicle_id: 'V', date: '2026-01-01', time: null, odometer_km: null, fuel_type: null,
   quantity: null, unit_price: null, total_amount: null, is_full_tank: true, missed_fill: false,
   station: null, payment_method: null, note: null, updated_at: '', ...p,
 })
@@ -168,10 +168,71 @@ describe('the real Drivvo data (golden numbers)', () => {
     expect(r.exact).toBe(false)
   })
 
-  it('gives every row the same estimate when no fill is marked full', () => {
+  it('gives each fill its own interval estimate when none is marked full', () => {
     const map = consumptionByEntry(accent, car)
-    expect(map.size).toBe(accent.length)
-    expect([...new Set([...map.values()].map((v) => v.l100.toFixed(4)))]).toHaveLength(1)
+
+    // One per fill EXCEPT the first, which has no interval behind it to measure.
+    expect(map.size).toBe(accent.length - 1)
+    expect(map.has(accent[0]!.id)).toBe(false)
+
+    // Distinct per row, which the old behaviour (one number repeated) was not.
+    const distinct = new Set([...map.values()].map((v) => v.l100.toFixed(4)))
+    expect(distinct.size).toBeGreaterThan(1)
+
+    // Each is this fill's litres over the distance since the previous one.
+    const second = map.get(accent[1]!.id)!
+    const distance = accent[1]!.odometer_km! - accent[0]!.odometer_km!
+    expect(second.distanceKm).toBe(distance)
+    expect(second.l100).toBeCloseTo((500_000 / 21_000 / distance) * 100, 6)
+    expect(second.exact).toBe(false)
+  })
+
+  it('still reports the aggregate, not the mean of the per-row estimates', () => {
+    // The per-row figures swing with how far the user happened to drive before refilling;
+    // averaging them would weigh a 200 km interval like a 400 km one. The overview keeps
+    // the distance-weighted aggregate instead.
+    const map = consumptionByEntry(accent, car)
+    const meanOfRows =
+      [...map.values()].reduce((a, v) => a + v.l100, 0) / map.size
+    const aggregate = aggregateEstimate(accent)!.l100
+
+    expect(aggregate).toBeCloseTo(8.54, 2)
+    expect(meanOfRows).not.toBeCloseTo(aggregate, 2)
+  })
+
+  it('skips an interval whose fuel was admitted to be unrecorded', () => {
+    const entries = [
+      fill({ odometer_km: 1000, total_amount: 210_000, unit_price: 21_000, is_full_tank: false, date: '2026-01-01' }),
+      fill({ odometer_km: 1200, total_amount: 210_000, unit_price: 21_000, is_full_tank: false, date: '2026-01-05',
+             missed_fill: true }),
+      fill({ odometer_km: 1400, total_amount: 210_000, unit_price: 21_000, is_full_tank: false, date: '2026-01-09' }),
+    ]
+    const map = consumptionByEntry(entries, car)
+
+    // The flagged fill itself, and the interval that starts at it, are both unusable.
+    expect(map.has(entries[1]!.id)).toBe(false)
+    expect(map.has(entries[2]!.id)).toBe(false)
+  })
+
+  it('skips a fill with no odometer reading rather than inventing a distance', () => {
+    const entries = [
+      fill({ odometer_km: 1000, total_amount: 210_000, unit_price: 21_000, is_full_tank: false, date: '2026-01-01' }),
+      fill({ odometer_km: null, total_amount: 210_000, unit_price: 21_000, is_full_tank: false, date: '2026-01-05' }),
+      fill({ odometer_km: 1400, total_amount: 210_000, unit_price: 21_000, is_full_tank: false, date: '2026-01-09' }),
+    ]
+    const map = consumptionByEntry(entries, car)
+    expect(map.has(entries[1]!.id)).toBe(false)
+  })
+
+  it('flags a per-row estimate that falls outside the vehicle band', () => {
+    // 10 L over 20 km = 50 L/100km: a wrong odometer, not a thirsty car.
+    const entries = [
+      fill({ odometer_km: 1000, total_amount: 210_000, unit_price: 21_000, is_full_tank: false, date: '2026-01-01' }),
+      fill({ odometer_km: 1020, total_amount: 210_000, unit_price: 21_000, is_full_tank: false, date: '2026-01-05' }),
+    ]
+    const r = consumptionByEntry(entries, car).get(entries[1]!.id)!
+    expect(r.l100).toBeCloseTo(50, 1)
+    expect(r.outOfBand).toBe(true)
   })
 
   it('accepts a motorcycle at 2,3 L/100km that a car-shaped band would reject', () => {

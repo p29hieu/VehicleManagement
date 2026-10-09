@@ -140,14 +140,51 @@ export function HistoryScreen({ items, vehicle, onOpen }: Props) {
   )
 }
 
+interface Fact {
+  k: string
+  v: string
+  /** Carried onto the value so the consumption cell keeps its exact/suspect styling. */
+  cls?: string
+  exact?: boolean
+  suspect?: boolean
+  title?: string
+}
+
+/**
+ * The facts a row is worth showing, in reading order.
+ *
+ * Built as data rather than markup so the empty ones simply never appear: a service record
+ * has no litres, and a fill with no odometer has no distance. Printing "—" for each of
+ * those would fill the timeline with absences instead of information.
+ */
+function factsOf(item: TimelineItem): Fact[] {
+  const f: Fact[] = []
+  if (item.odometer_km != null) f.push({ k: 'ODO', v: km(item.odometer_km) })
+  if (item.delta_km != null && item.delta_km > 0) f.push({ k: 'Đi được', v: km(item.delta_km) })
+  if (item.liters != null)
+    f.push({ k: 'Số lượng', v: `${dec2(item.liters)} ${item.unit ?? ''}`.trim() })
+  if (item.unit_price != null)
+    f.push({ k: 'Đơn giá', v: `${money(item.unit_price)}/${item.unit ?? 'L'}` })
+  if (item.consumption) {
+    const c = item.consumption
+    f.push({
+      k: 'Tiêu thụ',
+      v: `${c.exact ? '' : '~'}${dec2(c.l100)} ${item.unit ?? 'L'}/100km`,
+      cls: 'row__cons',
+      exact: c.exact,
+      suspect: c.outOfBand,
+      title: c.outOfBand
+        ? 'Ngoài dải hợp lý của loại xe này — nhiều khả năng thiếu số lít hoặc sai số km'
+        : c.exact
+          ? 'Đo giữa hai lần đổ đầy bình'
+          : 'Ước tính từ quãng đường kể từ lần đổ trước',
+    })
+  }
+  return f
+}
+
 function Row({ item, onOpen }: { item: TimelineItem; onOpen: (i: TimelineItem) => void }) {
-  // Distance since the previous record is the number users actually scan for, so it sits
-  // on the row rather than being hidden behind a tap.
-  const meta = [
-    item.odometer_km != null ? km(item.odometer_km) : null,
-    item.delta_km != null && item.delta_km > 0 ? `${km(item.delta_km)} trước đó` : null,
-    item.subtitle,
-  ].filter(Boolean) as string[]
+  const facts = factsOf(item)
 
   return (
     <button type="button" className="row" data-kind={item.kind} onClick={() => onOpen(item)}>
@@ -158,28 +195,35 @@ function Row({ item, onOpen }: { item: TimelineItem; onOpen: (i: TimelineItem) =
             <span className="row__title">{item.title}</span>
             {item.badge ? <span className="row__badge">{item.badge}</span> : null}
           </span>
-          <span className="row__date num">{dateShort(item.date)}</span>
-        </span>
-        <span className="row__bottom">
-          <span className="row__meta num">{meta.join(' · ')}</span>
-          {item.consumption ? (
-            <span
-              className="row__cons num"
-              data-exact={String(item.consumption.exact)}
-              data-suspect={item.consumption.outOfBand ? '' : undefined}
-              title={
-                item.consumption.outOfBand
-                  ? 'Ngoài dải hợp lý của loại xe này — nhiều khả năng thiếu số lít hoặc sai số km'
-                  : item.consumption.exact
-                    ? 'Đo giữa hai lần đổ đầy bình'
-                    : 'Ước tính — chưa có lần đổ nào được đánh dấu đổ đầy bình'
-              }
-            >
-              {item.consumption.exact ? '' : '~'}
-              {dec2(item.consumption.l100)}
-            </span>
-          ) : null}
           <span className="row__amount num">{money(item.total_amount)}</span>
+        </span>
+
+        {facts.length > 0 && (
+          <span className="row__facts">
+            {facts.map((f) => (
+              <span className="fact" key={f.k}>
+                <span className="fact__k">{f.k}</span>
+                <span
+                  className={`fact__v num${f.cls ? ` ${f.cls}` : ''}`}
+                  data-exact={f.exact === undefined ? undefined : String(f.exact)}
+                  data-suspect={f.suspect ? '' : undefined}
+                  title={f.title}
+                >
+                  {f.v}
+                </span>
+              </span>
+            ))}
+          </span>
+        )}
+
+        <span className="row__bottom">
+          {/* Tags — full/partial tank, missed fill, station, or the service items. Long
+              ones truncate here rather than pushing the facts around. */}
+          <span className="row__meta">{item.subtitle}</span>
+          <span className="row__date num">
+            {dateShort(item.date)}
+            {item.time ? ` · ${item.time}` : ''}
+          </span>
         </span>
       </span>
     </button>

@@ -215,12 +215,44 @@ export function consumptionByEntry(
       })
   }
   if (map.size === 0) {
-    // No full-tank markers anywhere: every row carries the same vehicle-level estimate,
-    // which is the only defensible figure for this data (§3.5).
-    const est = aggregateEstimate(entries, priceFor)
-    if (est) {
-      const flagged = { ...est, outOfBand: !inBand(vehicle, est.l100) }
-      for (const e of entries) if (odoOf(e) != null) map.set(e.id, flagged)
+    // No full-tank markers anywhere. Each fill then gets its own interval: the fuel bought
+    // at this stop over the distance since the previous one.
+    //
+    // Read it as an estimate and nothing more. A fill measures litres put IN; this wants
+    // litres BURNED over that interval. The two agree only when the tank level matches at
+    // both ends, which two full tanks guarantee and buying by money does not. The whole
+    // difference in tank level lands on this one interval, so a single row can be well
+    // out — buy the same 500.000 đ every time and the figure is only distance in disguise.
+    // Across the whole log those errors cancel, which is why the overview keeps using
+    // aggregateEstimate instead of averaging these.
+    //
+    // Reported per row regardless, because the behaviour it replaces — one vehicle-level
+    // number repeated on every row — told the user nothing at all.
+    const sorted = [...entries].sort(byDateThenOdometer)
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1]!
+      const cur = sorted[i]!
+      // An admitted missing fill means the interval covers fuel that was never recorded.
+      if (cur.missed_fill || prev.missed_fill) continue
+
+      const from = odoOf(prev)
+      const to = odoOf(cur)
+      if (from == null || to == null) continue
+      const distance = to - from
+      if (distance <= 0) continue
+
+      const liters = litersOf(cur, priceFor(cur.fuel_type))
+      if (liters == null || liters <= 0) continue
+
+      const l100 = (liters / distance) * 100
+      map.set(cur.id, {
+        l100,
+        exact: false,
+        basis: 1,
+        distanceKm: distance,
+        outOfBand: !inBand(vehicle, l100),
+        usedFallbackPrice: needsFallback(cur) && priceFor(cur.fuel_type) != null,
+      })
     }
   }
   return map

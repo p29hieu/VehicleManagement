@@ -248,6 +248,15 @@
   cursor: pointer;
 }
 
+/* Date and time sit on one line. The time is the narrower of the two and never needs the
+   same room, so it takes a smaller share rather than an equal one. */
+.when {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
 /* Fuel-grade chips: amber needs dark ink, unlike the teal-backed chips. */
 .chip--fuel.is-active {
   background-image: var(--g-fuel);

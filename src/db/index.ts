@@ -165,6 +165,21 @@ class VehicleManagementDB extends Dexie {
             })
         }
       })
+
+    // v5: an optional time of day on each record. No index changes — nothing queries by
+    // hour — so this only backfills the field. `null` is the truth about an older row:
+    // the hour was never captured, and inventing one (midnight, say) would read on the
+    // timeline as a fill at 00:00 that never happened.
+    this.version(5).upgrade(async (tx) => {
+      for (const name of ['fuelEntries', 'services', 'expenses']) {
+        await tx
+          .table(name)
+          .toCollection()
+          .modify((row: { time?: unknown }) => {
+            if (row.time === undefined) row.time = null
+          })
+      }
+    })
   }
 }
 

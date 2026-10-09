@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FuelType, RecordKind, ServiceItem, Vehicle } from '../../domain/types'
 import { EXPENSE_CATEGORIES } from '../../domain/labels'
 import { pickerOptions, resolveFuelType, verbForUnit } from '../../domain/fuelTypes'
-import { todayISO } from '../../lib/format'
+import { nowHHMM, todayISO } from '../../lib/format'
 import { useFuelTypes } from '../../hooks/useAppData'
 import {
   deleteExpense, deleteFuelEntry, deleteService,
@@ -31,6 +31,9 @@ interface Props {
 
 interface FormState {
   date: string
+  /** `HH:MM`, or '' for "not recorded". An <input type="time"> reports an empty string
+   *  when cleared, so '' is the shape the control already speaks. */
+  time: string
   odometer_km: number | null
   total_amount: number | null
   /** Set once the user edits the total, after which it stops mirroring the item sum. */
@@ -55,6 +58,7 @@ interface FormState {
 
 const blank = (fuel: FuelType): FormState => ({
   date: todayISO(),
+  time: nowHHMM(),
   odometer_km: null,
   total_amount: null,
   total_touched: false,
@@ -124,7 +128,7 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
         const r = await getFuelEntry(target.id)
         if (!r) return
         setForm((f) => ({
-          ...f, date: r.date, odometer_km: r.odometer_km, total_amount: r.total_amount,
+          ...f, date: r.date, time: r.time ?? '', odometer_km: r.odometer_km, total_amount: r.total_amount,
           total_touched: true, price_touched: true, fuel_type: r.fuel_type ?? vehicle.fuel_type,
           quantity: r.quantity, unit_price: r.unit_price, is_full_tank: r.is_full_tank,
           typed_side: r.quantity != null ? 'quantity' : 'amount',
@@ -135,14 +139,14 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
         const r = await getService(target.id)
         if (!r) return
         setForm((f) => ({
-          ...f, date: r.date, odometer_km: r.odometer_km, total_amount: r.total_amount,
+          ...f, date: r.date, time: r.time ?? '', odometer_km: r.odometer_km, total_amount: r.total_amount,
           total_touched: true, price_touched: true, items: r.items, workshop: r.workshop ?? '', note: r.note ?? '',
         }))
       } else {
         const r = await getExpense(target.id)
         if (!r) return
         setForm((f) => ({
-          ...f, date: r.date, odometer_km: r.odometer_km, total_amount: r.total_amount,
+          ...f, date: r.date, time: r.time ?? '', odometer_km: r.odometer_km, total_amount: r.total_amount,
           total_touched: true, price_touched: true, category: r.category, note: r.note ?? '',
         }))
       }
@@ -228,6 +232,7 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
     const base = {
       vehicle_id: vehicle.id,
       date: form.date,
+      time: form.time || null,
       odometer_km: form.odometer_km,
       total_amount: form.total_amount,
       note: form.note.trim() || null,
@@ -388,16 +393,28 @@ export function EntrySheet({ vehicle, latestOdo, target, onClose }: Props) {
             </Field>
           )}
 
-          <Field label="Ngày" htmlFor="f-date">
-            <input
-              id="f-date"
-              className="input"
-              type="date"
-              value={form.date}
-              max={todayISO()}
-              onChange={(e) => set('date', e.target.value)}
-            />
-          </Field>
+          <div className="when">
+            <Field label="Ngày" htmlFor="f-date">
+              <input
+                id="f-date"
+                className="input"
+                type="date"
+                value={form.date}
+                max={todayISO()}
+                onChange={(e) => set('date', e.target.value)}
+              />
+            </Field>
+            {/* Optional on purpose: clearing it stores null rather than blocking the save. */}
+            <Field label="Giờ" htmlFor="f-time">
+              <input
+                id="f-time"
+                className="input"
+                type="time"
+                value={form.time}
+                onChange={(e) => set('time', e.target.value)}
+              />
+            </Field>
+          </div>
 
           <Field label="Ghi chú" htmlFor="f-note">
             <input

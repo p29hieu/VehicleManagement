@@ -2,6 +2,13 @@ import { z } from 'zod'
 import { ANCHOR_KINDS, VEHICLE_KINDS } from './types'
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải ở dạng yyyy-mm-dd')
+/** `HH:MM`, 24-hour. Optional everywhere: files written before the field existed, and
+ *  records the user chose not to time, both carry no hour at all. */
+const isoTime = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Giờ phải ở dạng HH:MM')
+  .nullable()
+  .optional()
 const nullableNum = z.number().finite().nullable()
 const nullableStr = z.string().nullable()
 
@@ -28,6 +35,7 @@ export const fuelEntrySchema = z.object({
   id: z.string().min(1),
   vehicle_id: z.string().min(1),
   date: isoDate,
+  time: isoTime,
   odometer_km: z.number().int().min(0).nullable(),
   // Optional so files written before per-entry fuel types still import cleanly.
   fuel_type: z.string().min(1).nullable().optional(),
@@ -45,6 +53,7 @@ export const serviceSchema = z.object({
   id: z.string().min(1),
   vehicle_id: z.string().min(1),
   date: isoDate,
+  time: isoTime,
   odometer_km: z.number().int().min(0).nullable(),
   // Accepts the legacy string[] shape and the priced form; normalised below.
   items: z
@@ -65,6 +74,7 @@ export const expenseSchema = z.object({
   id: z.string().min(1),
   vehicle_id: z.string().min(1),
   date: isoDate,
+  time: isoTime,
   odometer_km: z.number().int().min(0).nullable(),
   category: z.string().min(1),
   total_amount: nullableNum,
